@@ -32,6 +32,10 @@ venv/
 env/
 ENV/
 
+# Eval gate artifacts (written by CI / local runs; never committed)
+eval_metrics.json
+eval_summary.md
+
 # Tooling caches
 .pytest_cache/
 .mypy_cache/

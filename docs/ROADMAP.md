@@ -59,11 +59,23 @@ green-build gate (CLI runs, eval green, pytest passes) and the trust property.
 - Follow-up: scale the dataset (more judgments + statute questions), evaluate the
   fine-tuned variant against the harness, and publish the adapter to the Hub.
 
-## Milestone 5 — Evaluation at scale (QA workstream)
+## Milestone 5 — Evaluation + CI gate (QA workstream) — two tiers ✅ landed
 
-- Expand cases: more landmark judgments, statute questions, adversarial citation
-  attacks, and a larger out-of-domain refusal set.
-- Add metrics: citation precision/recall, answer faithfulness, latency.
+- **Golden set** (`evaluation/golden_set.json`): structured, lawyer-in-the-loop
+  cases (question, expected authority/proposition/pinpoint, should_answer,
+  verified_by, tiers) with clear TODO slots for a lawyer to add + verify.
+- **Tier 1 — deterministic gate** (`evaluation.harness`, stub-pinned/offline):
+  enforces invariants on every PR — hallucinations=0, citation accuracy/refusal/
+  retrieval-hit thresholds, and a citation-guard self-check (metadata-only,
+  retrieved-set, quote-grounding). **GitHub Actions** runs `pytest` + this gate
+  and FAILS the merge on any breach, posting a metrics-delta (vs
+  `baseline_metrics.json`) to the PR summary. `make ci` runs the same locally.
+- **Tier 2 — quality eval** (`evaluation.quality`, GPU, real retriever+model):
+  citation accuracy, retrieval hit-rate, proposition grounding, and a hook for
+  LegalBench/LawBench tasks. Runs in the cloud; **non-blocking** (a report, not a
+  gate). `make eval-quality`.
+- Follow-up: expand the golden set (lawyer-verified judgments + statute cases),
+  wire real LegalBench/LawBench task suites, and add latency metrics.
 
 ## Milestone 6 — Productionize surfaces
 

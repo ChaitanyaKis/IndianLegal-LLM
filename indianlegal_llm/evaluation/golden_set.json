@@ -1,0 +1,99 @@
+{
+  "_README": [
+    "Golden evaluation set for IndianLegal-LLM (lawyer-in-the-loop ready).",
+    "Each case: question, should_answer, expected_doc_id (stub corpus),",
+    "expected_authority (neutral citation / case), expected_proposition,",
+    "expected_pinpoint, verified_by, tiers, note.",
+    "Tiers: 'deterministic' = stub-pinned blocking merge gate; 'quality' = GPU",
+    "real-pipeline non-blocking metrics. Cases whose verified_by starts with 'TODO'",
+    "are inert placeholders for a lawyer to fill in and verify (skipped by runners).",
+    "LAWYERS: add new cases below; set verified_by to your name/date once checked."
+  ],
+  "cases": [
+    {
+      "case_id": "privacy",
+      "question": "Is privacy a fundamental right in India?",
+      "should_answer": true,
+      "expected_doc_id": "puttaswamy-2017",
+      "expected_authority": "K. S. Puttaswamy v. Union of India",
+      "expected_proposition": "the right to privacy is a fundamental right",
+      "expected_pinpoint": "",
+      "verified_by": "seed (maintainer)",
+      "tiers": ["deterministic", "quality"],
+      "note": "Puttaswamy: privacy is a fundamental right under Article 21."
+    },
+    {
+      "case_id": "basic-structure",
+      "question": "What is the basic structure doctrine of the Indian Constitution?",
+      "should_answer": true,
+      "expected_doc_id": "kesavananda-1973",
+      "expected_authority": "Kesavananda Bharati v. State of Kerala",
+      "expected_proposition": "basic structure",
+      "expected_pinpoint": "",
+      "verified_by": "seed (maintainer)",
+      "tiers": ["deterministic", "quality"],
+      "note": "Kesavananda: Parliament cannot destroy the basic structure."
+    },
+    {
+      "case_id": "capital-of-france",
+      "question": "What is the capital of France?",
+      "should_answer": false,
+      "expected_doc_id": null,
+      "expected_authority": "",
+      "expected_proposition": "",
+      "expected_pinpoint": "",
+      "verified_by": "seed (maintainer)",
+      "tiers": ["deterministic"],
+      "note": "Out of domain (not Indian law): must refuse, no ungrounded claim."
+    },
+    {
+      "case_id": "european-union-structure",
+      "question": "What is the structure of the European Union?",
+      "should_answer": false,
+      "expected_doc_id": null,
+      "expected_authority": "",
+      "expected_proposition": "",
+      "expected_pinpoint": "",
+      "verified_by": "seed (maintainer)",
+      "tiers": ["deterministic"],
+      "note": "Adversarial out-of-domain (shares only 'structure'): must refuse."
+    },
+    {
+      "case_id": "us-bill-of-rights",
+      "question": "What rights does the United States Bill of Rights guarantee?",
+      "should_answer": false,
+      "expected_doc_id": null,
+      "expected_authority": "",
+      "expected_proposition": "",
+      "expected_pinpoint": "",
+      "verified_by": "seed (maintainer)",
+      "tiers": ["deterministic"],
+      "note": "Adversarial out-of-domain (shares only 'rights'): must refuse."
+    },
+
+    {
+      "case_id": "TODO-pinpoint-example",
+      "question": "TODO (lawyer): a real Indian-law question whose answer pinpoints a paragraph.",
+      "should_answer": true,
+      "expected_doc_id": null,
+      "expected_authority": "TODO: neutral citation, e.g. 2017 INSC 791",
+      "expected_proposition": "TODO: a short verbatim proposition the answer must ground",
+      "expected_pinpoint": "TODO: e.g. ¶ 297",
+      "verified_by": "TODO: lawyer to add & verify",
+      "tiers": ["quality"],
+      "note": "Template slot. Inert until verified_by is set to a real verifier."
+    },
+    {
+      "case_id": "TODO-statute-example",
+      "question": "TODO (lawyer): a bare-act / statute question (India Code).",
+      "should_answer": true,
+      "expected_doc_id": null,
+      "expected_authority": "TODO: the Act and section",
+      "expected_proposition": "TODO: the operative text the answer must quote",
+      "expected_pinpoint": "",
+      "verified_by": "TODO: lawyer to add & verify",
+      "tiers": ["quality"],
+      "note": "Template slot for a statute case. Inert until verified."
+    }
+  ]
+}

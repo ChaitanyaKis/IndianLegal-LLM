@@ -1,0 +1,9 @@
+{
+  "num_cases": 5,
+  "citation_accuracy": 1.0,
+  "refusal_accuracy": 1.0,
+  "retrieval_hit_rate": 1.0,
+  "hallucinations": 0,
+  "guard_invariants_ok": true,
+  "green": true
+}

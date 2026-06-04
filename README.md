@@ -44,9 +44,28 @@ With `make`:
 ```bash
 make run                 # CLI on the default question
 make run Q="What is the basic structure doctrine?"
-make eval                # evaluation harness
+make eval                # deterministic eval gate
+make ci                  # the full blocking gate: pytest + deterministic gate
+make eval-quality        # NON-blocking GPU quality eval (real model/retriever)
 make test                # pytest
 ```
+
+## Evaluation (two tiers) & CI
+
+The golden set lives in
+[`indianlegal_llm/evaluation/golden_set.json`](indianlegal_llm/evaluation/golden_set.json)
+(lawyer-in-the-loop: question, expected authority/proposition/pinpoint,
+`verified_by`, tiers — with TODO slots to fill in and verify).
+
+- **Tier 1 — deterministic gate** (`evaluation.harness`): stub-pinned, offline, fast.
+  Enforces invariants — `hallucinations=0`, citation-accuracy/refusal/retrieval-hit
+  thresholds, and a citation-guard self-check (metadata-only, retrieved-set,
+  quote-grounding). **GitHub Actions runs `pytest` + this gate on every PR** and
+  fails the merge on any breach, posting a metrics-delta to the PR summary.
+  Reproduce locally with `make ci`.
+- **Tier 2 — quality eval** (`evaluation.quality`): GPU, real retriever + model/
+  adapter. Citation accuracy, retrieval hit-rate, proposition grounding, and a
+  LegalBench/LawBench hook. Runs in the cloud, **non-blocking** (a report, not a gate).
 
 ---
 

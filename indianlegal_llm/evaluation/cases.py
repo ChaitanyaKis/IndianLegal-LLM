@@ -1,52 +1,63 @@
-"""The evaluation cases.
+"""Load the golden evaluation set from ``golden_set.json``.
 
-Two in-domain Indian-law questions that must be answered WITH a citation to the
-right judgment, and one out-of-domain question that must be REFUSED (it exercises
-the trust property in CLAUDE.md §4).
+The golden set is the single source of truth for both eval tiers. Inert TODO
+placeholders (``verified_by`` starting with "TODO") are skipped. ``CASES`` is the
+deterministic tier (the stub-pinned blocking gate); ``quality_cases()`` is the
+GPU/real-pipeline tier.
 """
 
 from __future__ import annotations
 
-from .schema import EXPECT_ANSWER, EXPECT_REFUSE, EvalCase
+import json
+from pathlib import Path
 
-CASES: list[EvalCase] = [
-    EvalCase(
-        case_id="privacy",
-        question="Is privacy a fundamental right in India?",
-        expect=EXPECT_ANSWER,
-        expect_doc_id="puttaswamy-2017",
-        note="Puttaswamy: privacy is a fundamental right under Article 21.",
-    ),
-    EvalCase(
-        case_id="basic-structure",
-        question="What is the basic structure doctrine of the Indian Constitution?",
-        expect=EXPECT_ANSWER,
-        expect_doc_id="kesavananda-1973",
-        note="Kesavananda: Parliament cannot destroy the basic structure.",
-    ),
-    EvalCase(
-        case_id="capital-of-france",
-        question="What is the capital of France?",
-        expect=EXPECT_REFUSE,
-        note="Out of domain (not Indian law): must refuse, no ungrounded claim.",
-    ),
-    EvalCase(
-        case_id="european-union-structure",
-        question="What is the structure of the European Union?",
-        expect=EXPECT_REFUSE,
-        note=(
-            "Adversarial out-of-domain: shares only the incidental token "
-            "'structure' with the corpus. The retriever's relevance gate must "
-            "still drop it so the Answerer refuses (CLAUDE.md §1, §4)."
-        ),
-    ),
-    EvalCase(
-        case_id="us-bill-of-rights",
-        question="What rights does the United States Bill of Rights guarantee?",
-        expect=EXPECT_REFUSE,
-        note=(
-            "Adversarial out-of-domain: shares only 'rights'/'right' with the "
-            "corpus. Must refuse rather than answer about foreign law."
-        ),
-    ),
-]
+from .schema import (
+    EXPECT_ANSWER,
+    EXPECT_REFUSE,
+    TIER_DETERMINISTIC,
+    TIER_QUALITY,
+    EvalCase,
+)
+
+_GOLDEN_SET_PATH = Path(__file__).with_name("golden_set.json")
+
+
+def load_golden_set(path: Path | None = None) -> list[EvalCase]:
+    """Parse all golden-set cases (including inert TODO placeholders)."""
+    data = json.loads((path or _GOLDEN_SET_PATH).read_text(encoding="utf-8"))
+    cases: list[EvalCase] = []
+    for record in data["cases"]:
+        cases.append(
+            EvalCase(
+                case_id=record["case_id"],
+                question=record["question"],
+                expect=EXPECT_ANSWER if record.get("should_answer") else EXPECT_REFUSE,
+                expect_doc_id=record.get("expected_doc_id"),
+                expected_authority=record.get("expected_authority", ""),
+                expected_proposition=record.get("expected_proposition", ""),
+                expected_pinpoint=record.get("expected_pinpoint", ""),
+                verified_by=record.get("verified_by", ""),
+                tiers=tuple(record.get("tiers", (TIER_DETERMINISTIC,))),
+                note=record.get("note", ""),
+            )
+        )
+    return cases
+
+
+def _active(tier: str) -> list[EvalCase]:
+    """Verified (non-TODO) cases for a given tier."""
+    return [c for c in load_golden_set() if tier in c.tiers and not c.is_pending]
+
+
+def deterministic_cases() -> list[EvalCase]:
+    """Stub-pinned blocking-gate cases."""
+    return _active(TIER_DETERMINISTIC)
+
+
+def quality_cases() -> list[EvalCase]:
+    """GPU/real-pipeline non-blocking cases."""
+    return _active(TIER_QUALITY)
+
+
+# Backward-compatible default: the deterministic tier drives the gate + tests.
+CASES: list[EvalCase] = deterministic_cases()

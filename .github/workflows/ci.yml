@@ -1,0 +1,51 @@
+name: CI
+
+# Blocking merge gate (Tier 1): runs the deterministic, stub-pinned, offline eval
+# on every PR and push to main. The NON-blocking quality eval (Tier 2) needs a GPU
+# and runs in the cloud (Kaggle/Colab) — it is NOT part of this gate.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-gate:
+    name: pytest + deterministic eval gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # The package + gate are pure standard library; only pytest (dev extra) is
+      # added. No GPU, model, or corpus dependencies are installed.
+      - name: Install (dev tooling only)
+        run: python -m pip install -e .[dev]
+
+      # Includes the citation-guard invariant tests (tests/test_trust.py):
+      # metadata-only citations, retrieved-set filter, quote-grounding.
+      - name: Unit tests
+        run: python -m pytest -q
+
+      # Blocking: fails the job (and the merge) if hallucinations > 0, citation
+      # accuracy < threshold, retrieval/refusal drops, or a guard invariant breaks.
+      # Writes a metrics-delta (vs baseline_metrics.json) to the PR/job summary.
+      - name: Deterministic eval gate
+        if: always()
+        run: >-
+          python -m indianlegal_llm.evaluation.harness
+          --summary "$GITHUB_STEP_SUMMARY"
+          --json eval_metrics.json
+
+      - name: Upload metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-metrics
+          path: eval_metrics.json
+          if-no-files-found: ignore

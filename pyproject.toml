@@ -43,6 +43,7 @@ model = ["transformers", "torch", "accelerate", "bitsandbytes", "peft"]
 # QLoRA fine-tuning on a free cloud T4 (Qwen3-4B, Apache-2.0). Run IN THE CLOUD;
 # see notebooks/finetune_qlora.ipynb. Exports only the MIT LoRA adapter.
 finetune = ["unsloth", "trl", "datasets", "transformers", "peft", "bitsandbytes", "accelerate"]
+# Dev/CI tooling. The deterministic gate itself needs only the standard library.
 dev = ["pytest", "ruff"]
 
 [project.scripts]

@@ -39,12 +39,18 @@ happens in `pipeline.py :: build_pipeline()`.
   Llama/Gemma-custom fine-tune (CLAUDE.md §2). Training/inference run in the cloud; only
   the 50–200 MB adapter comes down (CLAUDE.md §5).
 
-## Evaluation / QA
+## Evaluation / QA (+ lawyer-in-the-loop)
 
-- **Owns:** `evaluation/` (`EvalCase`, `cases.py`, `harness.py`).
-- **Goal:** grow the case set (more in-domain answers, more out-of-domain refusals,
-  adversarial citation attacks) while keeping `citation_accuracy`,
-  `refusal_accuracy`, and `hallucinations` honest. The harness is the green gate.
+- **Owns:** `evaluation/` — the `golden_set.json` (the case source of truth), the
+  **deterministic gate** (`harness.py`, the blocking CI merge gate), and the
+  **quality eval** (`quality.py`, GPU, non-blocking). Two tiers, kept separate.
+- **Lawyers:** add/verify cases in `golden_set.json` (TODO slots provided): set the
+  expected authority (neutral citation), proposition, pinpoint, and `verified_by`.
+  Cases stay inert until verified.
+- **Goal:** keep the deterministic gate honest (hallucinations=0, citation/refusal/
+  retrieval thresholds, citation-guard invariants) and grow the quality tier
+  (citation accuracy, retrieval hit-rate, LegalBench/LawBench tasks). CI runs the
+  gate on every PR; `make ci` reproduces it locally.
 
 ## Application / surfaces
 
