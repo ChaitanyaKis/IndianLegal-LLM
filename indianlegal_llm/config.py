@@ -19,7 +19,11 @@ from dataclasses import dataclass
 # may be added once you confirm the exact repo id + parameter size on the model
 # card; Gemma 3 and earlier use Google's custom Gemma Terms and do NOT qualify.
 LICENSE_CLEAN_BASE_MODELS = {
-    "microsoft/phi-4": "MIT",  # default — genuinely MIT
+    "microsoft/phi-4": "MIT",  # default zero-shot serving base — genuinely MIT
+    # QLoRA fine-tune target (Apache-2.0, verified on the HF model card). The LoRA
+    # adapter we train and ship is MIT; the base is downloaded by the user.
+    "Qwen/Qwen3-4B-Instruct-2507": "Apache-2.0",
+    "unsloth/Qwen3-4B-Instruct-2507-bnb-4bit": "Apache-2.0",
 }
 
 
@@ -90,6 +94,10 @@ class Settings:
         needs the `model` extra + a GPU; `build_pipeline()` falls back to "stub"
         if it is unavailable so the skeleton always runs offline (CLAUDE.md §6).
         Env: LLM. The eval harness is always pinned to the stub.
+    adapter:
+        Optional LoRA/QLoRA adapter (local path or HF id) layered on ``base_model``
+        for the fine-tuned variant (CLAUDE.md §2: adapter ships MIT). Empty = serve
+        the base model zero-shot. Env: LORA_ADAPTER. Only loaded on a CUDA GPU.
     """
 
     base_model: str = "microsoft/phi-4"
@@ -101,6 +109,7 @@ class Settings:
     manifest_path: str = "data/source_manifest.jsonl"
     ingestor_strict: bool = False
     llm: str = "transformers"
+    adapter: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -117,6 +126,7 @@ class Settings:
                 os.getenv("INGESTOR_STRICT"), cls.ingestor_strict, name="INGESTOR_STRICT"
             ),
             llm=os.getenv("LLM", cls.llm),
+            adapter=os.getenv("LORA_ADAPTER", cls.adapter),
         )
 
     def base_model_is_license_clean(self) -> bool:

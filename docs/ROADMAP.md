@@ -50,8 +50,14 @@ green-build gate (CLI runs, eval green, pytest passes) and the trust property.
   StubLLM otherwise. The eval harness is pinned to the StubLLM (deterministic).
 - Gemma 4 (Apache-2.0, April 2026 release) only after confirming its exact repo id
   on the current model card (Gemma 3 and earlier do not qualify).
-- Follow-up: fine-tune an Indian-law LoRA/QLoRA adapter and **ship the adapter
-  under MIT**; train/infer in the cloud, only the 50–200 MB adapter comes down.
+- QLoRA fine-tune ✅ landed: `notebooks/finetune_qlora.ipynb` builds a
+  guard-passing instruction set (`indianlegal_llm.finetune`) from the processed
+  corpus and QLoRA-tunes **Qwen3-4B-Instruct-2507 (Apache-2.0)** on a free T4 with
+  Unsloth + PEFT, exporting only the **MIT LoRA adapter** (50–200 MB). Serving
+  loads the Apache-2.0 base + adapter via `BASE_MODEL` + `LORA_ADAPTER` (GPU-gated,
+  stub fallback). Train/infer in the cloud; only the adapter comes down.
+- Follow-up: scale the dataset (more judgments + statute questions), evaluate the
+  fine-tuned variant against the harness, and publish the adapter to the Hub.
 
 ## Milestone 5 — Evaluation at scale (QA workstream)
 

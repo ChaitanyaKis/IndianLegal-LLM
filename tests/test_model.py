@@ -8,6 +8,7 @@ on the stub (see test_pipeline / harness), so it is deterministic and GPU-free.
 from __future__ import annotations
 
 import importlib.util
+import os
 
 import pytest
 
@@ -86,6 +87,81 @@ def test_explicit_llm_is_never_overridden():
         Settings(llm="transformers"), ingestor=StubIngestor(), llm=StubLLM()
     )
     assert pipe.llm_backend == "StubLLM"
+
+
+# --------------------------------------------------------------------------- #
+# Offline: LoRA adapter plumbing (the fine-tuned variant)
+# --------------------------------------------------------------------------- #
+def test_transformers_llm_accepts_adapter_without_loading():
+    llm = get_llm(
+        "transformers",
+        base_model="Qwen/Qwen3-4B-Instruct-2507",
+        adapter="/path/to/adapter",
+    )
+    assert isinstance(llm, TransformersLLM)
+    assert llm.adapter == "/path/to/adapter"
+    assert llm._model is None  # no base or adapter load at construction
+
+
+def test_adapter_threads_through_build_pipeline(monkeypatch):
+    from indianlegal_llm import pipeline as pl
+
+    captured: dict = {}
+
+    def _spy(name, **kwargs):
+        captured["name"] = name
+        captured.update(kwargs)
+        raise ImportError("simulated: do not actually load weights")
+
+    monkeypatch.setattr(pl, "get_llm", _spy)
+    pl.build_pipeline(
+        Settings(
+            llm="transformers",
+            base_model="Qwen/Qwen3-4B-Instruct-2507",
+            adapter="/path/to/adapter",
+        ),
+        ingestor=StubIngestor(),
+    )
+    assert captured["name"] == "transformers"
+    assert captured["base_model"] == "Qwen/Qwen3-4B-Instruct-2507"
+    assert captured["adapter"] == "/path/to/adapter"
+
+
+def test_adapter_load_is_also_gpu_gated(monkeypatch):
+    """Even with an adapter configured, no GPU -> raise before any download."""
+    if importlib.util.find_spec("torch") is None:
+        pytest.skip("torch not installed")
+    import torch
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    llm = TransformersLLM(model_id="Qwen/Qwen3-4B-Instruct-2507", adapter="/a")
+    with pytest.raises(RuntimeError, match="CUDA GPU"):
+        llm.ensure_loaded()
+
+
+# --------------------------------------------------------------------------- #
+# GPU smoke: Qwen3-4B base + LoRA adapter must pass the citation guard
+# --------------------------------------------------------------------------- #
+@pytest.mark.skipif(
+    not (_real_model_available() and os.getenv("TEST_ADAPTER")),
+    reason="no CUDA GPU or TEST_ADAPTER unset; adapter smoke skipped",
+)
+def test_qwen3_with_adapter_smoke_passes_guard():  # pragma: no cover - GPU only
+    pipe = build_pipeline(
+        Settings(
+            llm="transformers",
+            base_model="Qwen/Qwen3-4B-Instruct-2507",
+            adapter=os.environ["TEST_ADAPTER"],
+        ),
+        ingestor=StubIngestor(),
+    )
+    assert pipe.llm_backend == "TransformersLLM"  # base + adapter loaded
+    answer = pipe.answer("Is privacy a fundamental right in India?")
+    if answer.refused:
+        assert answer.citations == []
+    else:
+        assert answer.is_grounded and answer.citations
+        assert all(c.reference for c in answer.citations)
 
 
 # --------------------------------------------------------------------------- #

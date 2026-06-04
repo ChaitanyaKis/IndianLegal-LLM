@@ -28,11 +28,14 @@ class TransformersLLM(BaseLLM):
         self,
         model_id: str = "microsoft/phi-4",
         *,
+        adapter: str = "",
         max_new_tokens: int = 512,
         temperature: float = 0.0,  # greedy: maximal determinism for legal output
         top_p: float = 0.9,
     ) -> None:
         self.model_id = model_id
+        #: Optional LoRA/QLoRA adapter (local path or HF id) layered on the base.
+        self.adapter = adapter
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
         self.top_p = top_p
@@ -88,13 +91,28 @@ class TransformersLLM(BaseLLM):
             bnb_4bit_compute_dtype=torch.bfloat16,
         )
         self._tokenizer = AutoTokenizer.from_pretrained(self.model_id)
-        self._model = AutoModelForCausalLM.from_pretrained(
+        model = AutoModelForCausalLM.from_pretrained(
             self.model_id,
             device_map="auto",
             quantization_config=quantization,
             torch_dtype=torch.bfloat16,
         )
-        self._model.eval()
+
+        # Layer the fine-tuned LoRA/QLoRA adapter on the 4-bit base, if configured.
+        # The adapter is small (50-200 MB) and ships MIT (CLAUDE.md §2). Only
+        # reached after the GPU gate, so nothing is downloaded on a laptop.
+        if self.adapter:
+            try:
+                from peft import PeftModel
+            except ImportError as exc:  # pragma: no cover - exercised without the extra
+                raise ImportError(
+                    "peft is required to load a LoRA adapter. "
+                    "Install the model extra: pip install -e .[model]"
+                ) from exc
+            model = PeftModel.from_pretrained(model, self.adapter)
+
+        model.eval()
+        self._model = model
 
     # -- generation -------------------------------------------------------- #
     def generate(self, system: str, user: str) -> str:

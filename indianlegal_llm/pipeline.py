@@ -81,7 +81,9 @@ def _resolve_llm(settings: Settings) -> BaseLLM:
     if (settings.llm or "stub").strip().lower() == "stub":
         return StubLLM()
     try:
-        llm = get_llm(settings.llm, base_model=settings.base_model)
+        llm = get_llm(
+            settings.llm, base_model=settings.base_model, adapter=settings.adapter
+        )
         ensure_loaded = getattr(llm, "ensure_loaded", None)
         if ensure_loaded is not None:
             ensure_loaded()

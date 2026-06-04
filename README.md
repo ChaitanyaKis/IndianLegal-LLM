@@ -154,6 +154,23 @@ deterministic and GPU-free. Generation is low-temperature (greedy) for legal
 determinism, and the system prompt requires a **verbatim quote + `[chunk_id]`**
 per proposition so answers pass the citation guard (grounded, cited, pinpointed).
 
+### Fine-tuning (QLoRA)
+
+[`notebooks/finetune_qlora.ipynb`](notebooks/finetune_qlora.ipynb) QLoRA-tunes
+**Qwen3-4B-Instruct-2507 (Apache-2.0)** on a free cloud T4 (Unsloth + PEFT), using a
+guard-passing instruction set built from the processed corpus
+(`indianlegal_llm.finetune`). It exports only the **MIT LoRA adapter** (50–200 MB) —
+base weights are never redistributed. Serve the fine-tuned variant with:
+
+```bash
+pip install -e .[model]
+export BASE_MODEL=Qwen/Qwen3-4B-Instruct-2507 LORA_ADAPTER=adapters/indianlegal-qwen3-4b-lora
+python -m indianlegal_llm.app.cli "Is privacy a fundamental right in India?"
+```
+
+The adapter loads only on a CUDA GPU (GPU-gated), and the citation guard still
+applies. Run the notebook **in the cloud** — never on a laptop (CLAUDE.md §5).
+
 ## Optional surfaces
 
 ```bash

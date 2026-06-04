@@ -3,6 +3,8 @@
 # only code/configs go up, only a 50-200MB adapter comes down).
 data/
 models/
+adapters/
+outputs/
 *.safetensors
 *.gguf
 *.bin
