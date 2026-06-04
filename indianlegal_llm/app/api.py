@@ -45,6 +45,9 @@ def _serialize(answer: Answer) -> dict:
                 "title": c.title,
                 "court": c.court,
                 "url": c.url,
+                "para_start": c.para_start,
+                "para_end": c.para_end,
+                "pinpoint": c.pinpoint,
             }
             for c in answer.citations
         ],

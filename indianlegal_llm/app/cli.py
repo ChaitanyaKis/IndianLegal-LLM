@@ -29,7 +29,9 @@ def format_answer(answer: Answer) -> str:
     lines.append("")
     lines.append("Citations:")
     for c in answer.citations:
-        lines.append(f"  - [{c.chunk_id}] {c.title} ({c.court})")
+        # Pinpoint to the cited paragraph(s) when known: "<case> ¶ N" / "¶ N-M".
+        pinpoint = f" {c.pinpoint}" if c.pinpoint else ""
+        lines.append(f"  - [{c.chunk_id}] {c.title}{pinpoint} ({c.court})")
         lines.append(f"      {c.url}")
     return "\n".join(lines)
 

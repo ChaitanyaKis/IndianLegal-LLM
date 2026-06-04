@@ -78,7 +78,9 @@ class Citation:
     """A grounded reference emitted in an Answer.
 
     A Citation only ever exists for a chunk that was actually retrieved for the
-    query (enforced by the Answerer — see CLAUDE.md §4).
+    query (enforced by the Answerer — see CLAUDE.md §4). ``para_start``/``para_end``
+    carry the cited chunk's judgment-paragraph span (None for unnumbered text),
+    enabling pinpoint citation (e.g. "Puttaswamy ¶ 297").
     """
 
     chunk_id: str
@@ -86,6 +88,17 @@ class Citation:
     title: str
     court: str
     url: str
+    para_start: int | None = None
+    para_end: int | None = None
+
+    @property
+    def pinpoint(self) -> str:
+        """Render the paragraph pinpoint: '¶ N', '¶ N-M', or '' when unnumbered."""
+        if self.para_start is None:
+            return ""
+        if self.para_end is None or self.para_end == self.para_start:
+            return f"¶ {self.para_start}"
+        return f"¶ {self.para_start}-{self.para_end}"
 
 
 @dataclass

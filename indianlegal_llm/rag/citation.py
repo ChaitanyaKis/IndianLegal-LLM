@@ -78,11 +78,18 @@ def extract_cited_ids(text: str) -> list[str]:
 
 
 def to_citation(chunk: Chunk) -> Citation:
-    """Build a :class:`Citation` from a chunk that was actually retrieved."""
+    """Build a :class:`Citation` from a chunk that was actually retrieved.
+
+    Carries the chunk's paragraph span (``para_start``/``para_end`` from the
+    processor) so the answer can be pinpoint-cited; absent/None when the source
+    text was unnumbered.
+    """
     return Citation(
         chunk_id=chunk.chunk_id,
         doc_id=chunk.doc_id,
         title=chunk.title,
         court=chunk.court,
         url=chunk.url,
+        para_start=chunk.metadata.get("para_start"),
+        para_end=chunk.metadata.get("para_end"),
     )

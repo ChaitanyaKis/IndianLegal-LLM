@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import pytest
 
+from indianlegal_llm.app.cli import format_answer
 from indianlegal_llm.evaluation import harness
 from indianlegal_llm.evaluation.cases import CASES
 from indianlegal_llm.pipeline import build_pipeline
 from indianlegal_llm.rag.citation import extract_cited_ids
-from indianlegal_llm.schemas import Answer
+from indianlegal_llm.schemas import Answer, Citation
 
 
 @pytest.fixture(scope="module")
@@ -127,6 +128,35 @@ def test_answerer_drops_fabricated_citations():
 def test_extract_cited_ids_dedupes_in_order():
     text = "see [a::1] and [b::2] and again [a::1]"
     assert extract_cited_ids(text) == ["a::1", "b::2"]
+
+
+def test_citation_pinpoint_rendering():
+    base = dict(chunk_id="d::0", doc_id="d", title="T", court="C", url="u")
+    assert Citation(**base, para_start=297, para_end=297).pinpoint == "¶ 297"
+    assert Citation(**base, para_start=12, para_end=14).pinpoint == "¶ 12-14"
+    assert Citation(**base).pinpoint == ""  # unnumbered / preamble -> omitted
+
+
+def test_cited_answer_carries_and_renders_paragraph_pinpoint(pipeline):
+    answer = pipeline.answer("Is privacy a fundamental right in India?")
+    assert answer.citations
+    cite = answer.citations[0]
+    assert cite.para_start is not None  # carried through to_citation from metadata
+    assert cite.pinpoint.startswith("¶")
+    rendered = format_answer(answer)
+    assert cite.pinpoint in rendered  # pinpoint shown in CLI output
+
+
+def test_unnumbered_citation_renders_without_pinpoint():
+    answer = Answer(
+        question="q",
+        text="x [d::0]",
+        citations=[Citation(chunk_id="d::0", doc_id="d", title="Some Case", court="SC", url="u")],
+        refused=False,
+    )
+    rendered = format_answer(answer)
+    assert "¶" not in rendered
+    assert "Some Case" in rendered
 
 
 def _chunk(chunk_id: str, doc_id: str = "d"):
