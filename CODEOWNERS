@@ -1,0 +1,18 @@
+# Code owners for IndianLegal-LLM.
+# These owners are requested for review on matching paths.
+
+# Default owner for everything in the repo.
+*                       @ChaitanyaKis
+
+# LOCKED constraints — changes here need maintainer sign-off.
+/CLAUDE.md              @ChaitanyaKis
+/LICENSE                @ChaitanyaKis
+
+# The single wiring point and the trust-critical paths.
+/indianlegal_llm/pipeline.py          @ChaitanyaKis
+/indianlegal_llm/rag/answerer.py      @ChaitanyaKis
+/indianlegal_llm/rag/citation.py      @ChaitanyaKis
+
+# Data provenance and licensing surfaces.
+/indianlegal_llm/ingestion/           @ChaitanyaKis
+/docs/DATA_SOURCES.md                 @ChaitanyaKis

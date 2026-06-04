@@ -1,0 +1,13 @@
+# Normalize line endings: keep LF in the repo for cross-platform consistency.
+* text=auto eol=lf
+
+# Makefiles require literal tabs; keep them LF too (handled by the rule above).
+Makefile text eol=lf
+
+# Treat model/data artifacts as binary if they ever slip in (they shouldn't —
+# see .gitignore; corpora and weights never live in the repo, CLAUDE.md §5).
+*.safetensors binary
+*.gguf binary
+*.bin binary
+*.pt binary
+*.ckpt binary

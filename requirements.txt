@@ -1,0 +1,33 @@
+# IndianLegal-LLM — runtime requirements
+#
+# The walking skeleton needs NOTHING here: it runs on the Python standard library
+# only (zero external dependencies). This file is intentionally empty of hard
+# requirements so the skeleton stays installable and green anywhere.
+#
+# Per-workstream dependencies (install as each stub is replaced by a real impl).
+# These are documented here and mirrored as optional extras in pyproject.toml.
+#
+# --- API surface (app/api.py) ---
+#   fastapi
+#   uvicorn[standard]
+#
+# --- Demo surface (app/demo.py) ---
+#   gradio
+#
+# --- Ingestion workstream (AWS Open Data / India Code / Indian Kanoon) ---
+#   boto3            # S3 access to AWS Open Data judgments
+#   httpx            # India Code / Indian Kanoon fetching
+#
+# --- Embedding + vector retrieval workstream ---
+#   sentence-transformers
+#   faiss-cpu        # or: chromadb / qdrant-client
+#
+# --- Model + fine-tuning workstream (base model MUST be Apache-2.0/MIT) ---
+#   transformers
+#   torch
+#   peft             # LoRA/QLoRA adapters (shipped under MIT)
+#   accelerate
+#
+# --- Dev/test ---
+#   pytest
+#   ruff

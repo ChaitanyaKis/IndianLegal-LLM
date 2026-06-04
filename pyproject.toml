@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "indianlegal-llm"
+version = "0.1.0"
+description = "An open-source, citation-grounded LLM framework for Indian law."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "IndianLegal-LLM contributors" }]
+keywords = ["india", "law", "llm", "rag", "citations", "legal-nlp"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Legal Industry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# The walking skeleton has ZERO runtime dependencies (pure stdlib).
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/ChaitanyaKis/IndianLegal-LLM"
+Repository = "https://github.com/ChaitanyaKis/IndianLegal-LLM"
+
+[project.optional-dependencies]
+# Install per-workstream as stubs are replaced by real implementations.
+api = ["fastapi", "uvicorn[standard]"]
+demo = ["gradio"]
+ingestion = ["boto3", "httpx"]
+rag = ["sentence-transformers", "faiss-cpu"]
+# Base model MUST be Apache-2.0 or MIT (CLAUDE.md §2). Adapters ship MIT.
+model = ["transformers", "torch", "peft", "accelerate"]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+indianlegal-llm = "indianlegal_llm.app.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["indianlegal_llm*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
