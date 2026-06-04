@@ -1,0 +1,30 @@
+[
+  {
+    "court_code": "9_13",
+    "title": "ABC v. State of Maharashtra",
+    "description": "High Court judgment summary text.",
+    "judge": "Justice X",
+    "pdf_link": "https://example-hc.gov.in/judgments/abc.pdf",
+    "cnr": "MHHC01-000123-2020",
+    "date_of_registration": "2019-12-01",
+    "decision_date": "2020-06-15",
+    "disposal_nature": "Allowed",
+    "court_name": "Bombay High Court",
+    "year": "2020",
+    "court": "9_13"
+  },
+  {
+    "court_code": "27_1",
+    "title": "",
+    "description": "",
+    "judge": "",
+    "pdf_link": "",
+    "cnr": "",
+    "date_of_registration": "",
+    "decision_date": "",
+    "disposal_nature": "",
+    "court_name": "",
+    "year": "2020",
+    "court": "27_1"
+  }
+]

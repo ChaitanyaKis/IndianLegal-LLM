@@ -87,7 +87,7 @@ and evaluation harness all call it; none of them construct components directly.
 
 | Layer        | Interface (ABC)                     | Skeleton stub            |
 |--------------|-------------------------------------|--------------------------|
-| Ingestion    | `BaseIngestor.fetch()`              | `StubIngestor` (2 real SC judgments) |
+| Ingestion    | `BaseIngestor.fetch()`              | `StubIngestor` (offline) + real `aws-sc`/`aws-hc`/`india-code`/`indian-kanoon` |
 | Processing   | `BaseProcessor.process()`           | `StubProcessor` (naive chunker)      |
 | Embedding    | `BaseEmbedder.embed()`              | `StubEmbedder` (hashing) — *present but not wired into the skeleton* |
 | Retrieval    | `BaseRetriever.add()/retrieve()`    | `InMemoryRetriever` (lexical overlap)|
@@ -113,6 +113,28 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
+## Real ingestion (AWS Open Data + web sources)
+
+The skeleton answers from the offline stub corpus by default for zero-dep,
+deterministic runs. To pull real Indian judgments/statutes:
+
+```bash
+pip install -e .[ingestion]
+
+# Stream a small sample from the AWS Open Data Supreme Court bucket (ap-south-1,
+# public). Writes a provenance manifest to data/source_manifest.jsonl (gitignored).
+python -m indianlegal_llm.ingestion --source sc --limit 5
+python -m indianlegal_llm.ingestion --source hc --limit 20            # High Courts
+python -m indianlegal_llm.ingestion --source indian-kanoon --doc-ids 91938676,257876
+```
+
+Sources: `aws-sc`, `aws-hc` (parquet streamed from S3), `india-code`,
+`indian-kanoon` (web) — all behind the one `BaseIngestor` interface. The corpus is
+streamed and never downloaded whole to disk (CLAUDE.md §5). Set `INGESTOR=aws-sc`
+(default) or `INGESTOR=stub` to choose what `build_pipeline()` indexes; if a real
+source isn't available it falls back to the stub so the skeleton always runs. See
+[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
+
 ## Optional surfaces
 
 ```bash
@@ -120,8 +142,8 @@ pip install -e .[api]    # then: uvicorn indianlegal_llm.app.api:app --reload
 pip install -e .[demo]   # then: python -m indianlegal_llm.app.demo
 ```
 
-Both import-guard their optional dependencies, so the package always imports with
-the standard library alone.
+All optional surfaces and ingestors import-guard their dependencies, so the
+package always imports with the standard library alone.
 
 ---
 

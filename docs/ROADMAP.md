@@ -9,12 +9,18 @@ green-build gate (CLI runs, eval green, pytest passes) and the trust property.
 - Pipeline runs end-to-end with zero dependencies.
 - Eval: `citation_accuracy=1.0`, `refusal_accuracy=1.0`, `hallucinations=0`.
 
-## Milestone 1 — Real ingestion (Data workstream)
+## Milestone 1 — Real ingestion (Data workstream) ✅ landed
 
-- Replace `StubIngestor` with streaming ingestors for AWS Open Data (Indian
-  SC/HC judgments on S3), India Code, and Indian Kanoon.
-- Emit a persisted ingestion manifest (`url, court, date, license`).
-- Runs **in the cloud**; corpora never hit a laptop (CLAUDE.md §5).
+- Streaming ingestors behind `BaseIngestor`, selected by `INGESTOR` /
+  `--source`: `aws-sc`, `aws-hc` (parquet streamed from S3 with pyarrow + s3fs),
+  `india-code`, `indian-kanoon` (web). `aws-sc` is the default; `stub` stays for
+  offline runs and as the automatic fallback.
+- Emits a persisted manifest (`doc_id, url, court, date, language, license`) to
+  `data/source_manifest.jsonl` (gitignored). `--limit` pulls a small sample.
+- Streamed **in the cloud**; corpora never hit a laptop (CLAUDE.md §5).
+- Follow-ups: HC full-text via per-doc PDF streaming (today HC text = metadata
+  description); India Code act-URL discovery; richer SC text cleanup (strip the
+  language-selector chrome embedded in some `raw_html`).
 
 ## Milestone 2 — Real processing
 

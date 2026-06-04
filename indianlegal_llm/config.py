@@ -23,17 +23,22 @@ LICENSE_CLEAN_BASE_MODELS = {
 }
 
 
-def _parse_top_k(raw: str | None, default: int) -> int:
-    """Parse TOP_K defensively: clear error on garbage, must be positive."""
+def _parse_positive_int(raw: str | None, default: int, name: str = "value") -> int:
+    """Parse a positive int from env defensively: clear error on garbage."""
     if raw is None or raw.strip() == "":
         return default
     try:
         value = int(raw.strip())
     except ValueError:
-        raise ValueError(f"TOP_K must be an integer, got {raw!r}") from None
+        raise ValueError(f"{name} must be an integer, got {raw!r}") from None
     if value <= 0:
-        raise ValueError(f"TOP_K must be a positive integer, got {value}")
+        raise ValueError(f"{name} must be a positive integer, got {value}")
     return value
+
+
+def _parse_top_k(raw: str | None, default: int) -> int:
+    """Parse TOP_K defensively: clear error on garbage, must be positive."""
+    return _parse_positive_int(raw, default, name="TOP_K")
 
 
 @dataclass
@@ -50,12 +55,24 @@ class Settings:
         Retrieval backend. The skeleton uses "memory" (InMemoryRetriever).
     top_k:
         Number of chunks to retrieve per query.
+    ingestor:
+        Which ingestion source to use. One of "stub", "aws-sc", "aws-hc",
+        "india-code", "indian-kanoon". The real sources need the `ingestion`
+        extra; `build_pipeline()` falls back to "stub" if they are unavailable so
+        the zero-dependency skeleton always runs (CLAUDE.md §6).
+    ingest_limit:
+        Max documents to pull from a real source (the ingestion `--limit`).
+    manifest_path:
+        Where the ingestion manifest is written (under the gitignored data/).
     """
 
     base_model: str = "microsoft/phi-4"
     embedding_model: str = "stub-token-overlap"
     vector_backend: str = "memory"
     top_k: int = 3
+    ingestor: str = "aws-sc"
+    ingest_limit: int = 200
+    manifest_path: str = "data/source_manifest.jsonl"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -65,6 +82,9 @@ class Settings:
             embedding_model=os.getenv("EMBEDDING_MODEL", cls.embedding_model),
             vector_backend=os.getenv("VECTOR_BACKEND", cls.vector_backend),
             top_k=_parse_top_k(os.getenv("TOP_K"), cls.top_k),
+            ingestor=os.getenv("INGESTOR", cls.ingestor),
+            ingest_limit=_parse_top_k(os.getenv("INGEST_LIMIT"), cls.ingest_limit),
+            manifest_path=os.getenv("SOURCE_MANIFEST", cls.manifest_path),
         )
 
     def base_model_is_license_clean(self) -> bool:

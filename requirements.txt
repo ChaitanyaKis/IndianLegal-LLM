@@ -15,7 +15,9 @@
 #   gradio
 #
 # --- Ingestion workstream (AWS Open Data / India Code / Indian Kanoon) ---
-#   boto3            # S3 access to AWS Open Data judgments
+#   pyarrow          # read structured metadata parquet
+#   s3fs             # stream parquet from S3 (no-sign-request, ap-south-1)
+#   boto3            # AWS SDK (pulled in by s3fs / direct S3 access)
 #   httpx            # India Code / Indian Kanoon fetching
 #
 # --- Embedding + vector retrieval workstream ---

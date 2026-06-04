@@ -26,7 +26,7 @@ The contracts that travel between layers live in
 
 | Layer       | Module                          | Interface                          | Stub |
 |-------------|---------------------------------|------------------------------------|------|
-| Ingestion   | `ingestion/`                    | `BaseIngestor.fetch()`             | `StubIngestor` — 2 real SC judgments (Puttaswamy, Kesavananda) |
+| Ingestion   | `ingestion/`                    | `BaseIngestor.fetch()`             | `StubIngestor` (offline) + real `aws-sc`/`aws-hc` (S3 parquet), `india-code`, `indian-kanoon`; chosen via `get_ingestor()` / `INGESTOR` |
 | Processing  | `processing/`                   | `BaseProcessor.process()`          | `StubProcessor` — naive overlapping word chunker |
 | Embedding   | `rag/base.py`, `rag/embedder.py`| `BaseEmbedder.embed()`             | `StubEmbedder` — deterministic hashing vector |
 | Retrieval   | `rag/base.py`, `rag/retriever.py`| `BaseRetriever.add()/retrieve()`  | `InMemoryRetriever` — stopword-filtered token overlap |

@@ -17,7 +17,11 @@ from indianlegal_llm.schemas import Answer
 
 @pytest.fixture(scope="module")
 def pipeline():
-    return build_pipeline()
+    # Pin the offline stub corpus so these skeleton tests are deterministic and
+    # network-independent regardless of the configured INGESTOR default.
+    from indianlegal_llm.ingestion.stub import StubIngestor
+
+    return build_pipeline(ingestor=StubIngestor())
 
 
 def test_privacy_question_is_cited(pipeline):

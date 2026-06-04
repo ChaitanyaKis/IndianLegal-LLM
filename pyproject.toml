@@ -32,7 +32,9 @@ Repository = "https://github.com/ChaitanyaKis/IndianLegal-LLM"
 # Install per-workstream as stubs are replaced by real implementations.
 api = ["fastapi", "uvicorn[standard]"]
 demo = ["gradio"]
-ingestion = ["boto3", "httpx"]
+# Real ingestion: stream parquet from S3 (pyarrow + s3fs/boto3) and fetch web
+# sources (httpx). The base model MUST stay Apache-2.0/MIT (CLAUDE.md §2).
+ingestion = ["pyarrow", "s3fs", "boto3", "httpx"]
 rag = ["sentence-transformers", "faiss-cpu"]
 # Base model MUST be Apache-2.0 or MIT (CLAUDE.md §2). Adapters ship MIT.
 model = ["transformers", "torch", "peft", "accelerate"]

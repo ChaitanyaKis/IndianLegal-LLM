@@ -16,7 +16,7 @@ from collections.abc import Iterator
 from ..schemas import RawDoc
 from .base import BaseIngestor
 
-_GOV_LICENSE = "Public record (Indian Kanoon — government works)"
+_GOV_LICENSE = "Public record (Indian Kanoon - government works)"
 _SUPREME_COURT = "Supreme Court of India"
 
 
@@ -83,6 +83,7 @@ class StubIngestor(BaseIngestor):
             url="https://indiankanoon.org/doc/91938676/",
             license=_GOV_LICENSE,
             text=_PUTTASWAMY_TEXT,
+            language="en",
             metadata={"citation": "(2017) 10 SCC 1", "bench": 9, "topic": "privacy"},
         )
         yield RawDoc(
@@ -93,6 +94,7 @@ class StubIngestor(BaseIngestor):
             url="https://indiankanoon.org/doc/257876/",
             license=_GOV_LICENSE,
             text=_KESAVANANDA_TEXT,
+            language="en",
             metadata={
                 "citation": "(1973) 4 SCC 225",
                 "bench": 13,

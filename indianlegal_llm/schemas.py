@@ -32,16 +32,17 @@ class RawDoc:
     url: str
     license: str
     text: str
+    language: str = "en"  # ISO-639-ish code or label, e.g. "en", "hi"
     metadata: dict = field(default_factory=dict)
 
     def manifest_entry(self) -> dict:
         """Provenance record for the ingestion manifest (CLAUDE.md §3)."""
         return {
             "doc_id": self.doc_id,
-            "title": self.title,
+            "url": self.url,
             "court": self.court,
             "date": self.date,
-            "url": self.url,
+            "language": self.language,
             "license": self.license,
         }
 
