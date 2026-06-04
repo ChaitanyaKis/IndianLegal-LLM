@@ -19,8 +19,12 @@ import sys
 
 from .._io import enable_utf8_output
 from ..config import Settings
+from ..schemas import RawDoc
+from ._errors import PROGRAMMER_ERRORS
+from .base import BaseIngestor
 from .manifest import stream_to_manifest
 from .registry import SOURCES, get_ingestor
+from .stub import StubIngestor
 
 
 def _split_list(value: str | None) -> list[str] | None:
@@ -72,7 +76,26 @@ def _build_parser() -> argparse.ArgumentParser:
         default=5,
         help="print a summary of the first N documents (default: 5).",
     )
+    parser.add_argument(
+        "--strict",
+        action=argparse.BooleanOptionalAction,
+        default=settings.ingestor_strict,
+        help="treat a missing [ingestion] extra / network / credential as a HARD "
+        "error instead of falling back to the stub (default: from INGESTOR_STRICT, "
+        "else off). Use --no-strict to force graceful fallback.",
+    )
     return parser
+
+
+def _run_ingest(ingestor: BaseIngestor, manifest_path: str, show: int):
+    """Stream an ingestor to the manifest; return (count_written, sample_docs)."""
+    written = 0
+    samples: list[RawDoc] = []
+    for doc in stream_to_manifest(ingestor.fetch(), manifest_path):
+        written += 1
+        if len(samples) < show:
+            samples.append(doc)
+    return written, samples
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -100,20 +123,28 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    print(f"Ingesting source={ingestor.source_name} limit={args.limit} ...")
-    written = 0
-    samples = []
+    mode = "strict" if args.strict else "graceful-fallback"
+    print(f"Ingesting source={ingestor.source_name} limit={args.limit} ({mode}) ...")
     try:
-        for doc in stream_to_manifest(ingestor.fetch(), args.manifest):
-            written += 1
-            if len(samples) < args.show:
-                samples.append(doc)
-    except ImportError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 3
-    except Exception as exc:  # network / data error — report, do not fall back
-        print(f"error while ingesting from {ingestor.source_name}: {exc}", file=sys.stderr)
-        return 4
+        written, samples = _run_ingest(ingestor, args.manifest, args.show)
+    except Exception as exc:  # missing extra / network / credential / data
+        # Programmer errors always surface; otherwise honor strict vs graceful.
+        if isinstance(exc, PROGRAMMER_ERRORS):
+            raise
+        if args.strict:
+            print(
+                f"error: source '{ingestor.source_name}' unavailable "
+                f"({type(exc).__name__}: {exc}); --strict, not falling back.",
+                file=sys.stderr,
+            )
+            return 3 if isinstance(exc, ImportError) else 4
+        print(
+            f"[indianlegal_llm] WARNING: source '{ingestor.source_name}' unavailable "
+            f"({type(exc).__name__}: {exc}); falling back to StubIngestor. Use "
+            f"--strict (or INGESTOR_STRICT=1) to make this a hard error.",
+            file=sys.stderr,
+        )
+        written, samples = _run_ingest(StubIngestor(), args.manifest, args.show)
 
     print(f"\nWrote {written} document(s) to manifest: {args.manifest}\n")
     for doc in samples:

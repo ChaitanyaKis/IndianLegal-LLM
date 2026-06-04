@@ -41,6 +41,22 @@ def _parse_top_k(raw: str | None, default: int) -> int:
     return _parse_positive_int(raw, default, name="TOP_K")
 
 
+_TRUE_VALUES = {"1", "true", "yes", "on"}
+_FALSE_VALUES = {"0", "false", "no", "off", ""}
+
+
+def _parse_bool(raw: str | None, default: bool, name: str = "value") -> bool:
+    """Parse a boolean from env: 1/true/yes/on vs 0/false/no/off (case-insensitive)."""
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in _TRUE_VALUES:
+        return True
+    if value in _FALSE_VALUES:
+        return False
+    raise ValueError(f"{name} must be a boolean (1/0/true/false), got {raw!r}")
+
+
 @dataclass
 class Settings:
     """Configuration for a pipeline build.
@@ -64,6 +80,10 @@ class Settings:
         Max documents to pull from a real source (the ingestion `--limit`).
     manifest_path:
         Where the ingestion manifest is written (under the gitignored data/).
+    ingestor_strict:
+        If True, a missing [ingestion] extra / network / credential is a HARD
+        error instead of falling back to the stub. Default False (graceful
+        fallback with a stderr warning). Env: INGESTOR_STRICT=1.
     """
 
     base_model: str = "microsoft/phi-4"
@@ -73,6 +93,7 @@ class Settings:
     ingestor: str = "aws-sc"
     ingest_limit: int = 200
     manifest_path: str = "data/source_manifest.jsonl"
+    ingestor_strict: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -85,6 +106,9 @@ class Settings:
             ingestor=os.getenv("INGESTOR", cls.ingestor),
             ingest_limit=_parse_top_k(os.getenv("INGEST_LIMIT"), cls.ingest_limit),
             manifest_path=os.getenv("SOURCE_MANIFEST", cls.manifest_path),
+            ingestor_strict=_parse_bool(
+                os.getenv("INGESTOR_STRICT"), cls.ingestor_strict, name="INGESTOR_STRICT"
+            ),
         )
 
     def base_model_is_license_clean(self) -> bool:

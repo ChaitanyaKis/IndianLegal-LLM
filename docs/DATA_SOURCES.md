@@ -66,6 +66,21 @@ The corpus is **streamed** from S3 (parquet read file-by-file, stopping at
 are de-duplicated by `doc_id` (real corpora repeat case ids); a citation always
 maps to exactly one source.
 
+### Strict vs graceful fallback
+
+By default, if the `[ingestion]` extra, network, or AWS credentials are missing,
+the answering pipeline (`build_pipeline()`) and the ingestion CLI **fall back to
+the offline stub** with a stderr warning, so the skeleton always runs. For CI /
+automation where a silent fallback would hide a real problem, opt into **strict
+mode** to make it a hard error instead:
+
+```bash
+INGESTOR_STRICT=1 python -m indianlegal_llm.app.cli "Is privacy a fundamental right in India?"
+python -m indianlegal_llm.ingestion --source sc --limit 5 --strict   # exits non-zero on failure
+```
+
+The eval harness is always pinned to the stub, so it stays green regardless.
+
 ## Provenance manifest
 
 Every ingested document is logged (JSONL, one line per doc):

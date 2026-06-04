@@ -19,6 +19,7 @@ from __future__ import annotations
 import sys
 
 from .config import Settings
+from .ingestion._errors import PROGRAMMER_ERRORS
 from .ingestion.base import BaseIngestor
 from .ingestion.registry import get_ingestor
 from .ingestion.stub import StubIngestor
@@ -30,12 +31,6 @@ from .rag.answerer import Answerer
 from .rag.base import BaseRetriever
 from .rag.retriever import InMemoryRetriever
 from .schemas import Answer
-
-# Exception types that signal a programmer error rather than a degradable runtime
-# condition (missing extra / network / data). These propagate instead of silently
-# falling back to the stub, so a real code defect can't masquerade as "ingestor
-# unavailable" and pass the green-build gate.
-_PROGRAMMER_ERRORS = (AttributeError, TypeError, NameError, KeyError, IndexError)
 
 
 class Pipeline:
@@ -121,13 +116,15 @@ def build_pipeline(
     if auto and not isinstance(ingestor, StubIngestor):
         try:
             manifest, chunks = _index(ingestor, retriever)
-        except Exception as exc:  # missing extra / network / data — keep skeleton alive
-            if isinstance(exc, _PROGRAMMER_ERRORS):
-                raise  # a real code defect must surface, not masquerade as "unavailable"
+        except Exception as exc:  # missing extra / network / data
+            # Always surface real code defects; in strict mode surface everything.
+            if settings.ingestor_strict or isinstance(exc, PROGRAMMER_ERRORS):
+                raise
             print(
                 f"[indianlegal_llm] WARNING: ingestor '{settings.ingestor}' "
                 f"unavailable ({type(exc).__name__}: {exc}); falling back to "
-                f"StubIngestor for the offline skeleton. Run "
+                f"StubIngestor for the offline skeleton. Set INGESTOR_STRICT=1 to "
+                f"make this a hard error, or run "
                 f"`python -m indianlegal_llm.ingestion --source {settings.ingestor}` "
                 f"for real ingestion.",
                 file=sys.stderr,

@@ -243,21 +243,67 @@ def test_write_manifest_records_provenance(tmp_path):
 # --------------------------------------------------------------------------- #
 # build_pipeline fallback (keeps the offline skeleton green)
 # --------------------------------------------------------------------------- #
+class _FailingIngestor:
+    """An ingestor whose fetch() raises a degradable error (missing extra)."""
+
+    source_name = "aws-sc"
+
+    def fetch(self):
+        raise ImportError("s3fs not installed (simulated)")
+        yield  # pragma: no cover - never reached
+
+
 def test_build_pipeline_falls_back_to_stub_on_ingestor_failure(monkeypatch, capsys):
     from indianlegal_llm import pipeline as pl
-    from indianlegal_llm.ingestion.base import BaseIngestor
 
-    class FailingIngestor(BaseIngestor):
-        source_name = "failing-real"
-
-        def fetch(self):
-            raise ImportError("s3fs not installed (simulated)")
-            yield  # pragma: no cover - never reached
-
-    monkeypatch.setattr(pl, "get_ingestor", lambda *a, **k: FailingIngestor())
-    pipe = pl.build_pipeline(Settings(ingestor="aws-sc"))
+    monkeypatch.setattr(pl, "get_ingestor", lambda *a, **k: _FailingIngestor())
+    pipe = pl.build_pipeline(Settings(ingestor="aws-sc"))  # default: graceful
 
     assert pipe.source.startswith("stub")  # fell back
     assert pipe.num_chunks > 0
     assert pipe.answer("Is privacy a fundamental right in India?").is_grounded
     assert "falling back to StubIngestor" in capsys.readouterr().err
+
+
+def test_build_pipeline_strict_raises_instead_of_falling_back(monkeypatch):
+    from indianlegal_llm import pipeline as pl
+
+    monkeypatch.setattr(pl, "get_ingestor", lambda *a, **k: _FailingIngestor())
+    with pytest.raises(ImportError):
+        pl.build_pipeline(Settings(ingestor="aws-sc", ingestor_strict=True))
+
+
+def test_settings_parses_ingestor_strict(monkeypatch):
+    from indianlegal_llm.config import _parse_bool
+
+    assert _parse_bool("1", False) is True
+    assert _parse_bool("true", False) is True
+    assert _parse_bool("0", True) is False
+    assert _parse_bool(None, False) is False
+    monkeypatch.setenv("INGESTOR_STRICT", "1")
+    assert Settings.from_env().ingestor_strict is True
+    monkeypatch.delenv("INGESTOR_STRICT", raising=False)
+    assert Settings.from_env().ingestor_strict is False
+
+
+def test_ingestion_cli_graceful_fallback_to_stub(monkeypatch, tmp_path, capsys):
+    from indianlegal_llm.ingestion import cli
+
+    monkeypatch.delenv("INGESTOR_STRICT", raising=False)
+    monkeypatch.setattr(cli, "get_ingestor", lambda *a, **k: _FailingIngestor())
+    manifest = tmp_path / "m.jsonl"
+    rc = cli.main(["--source", "aws-sc", "--manifest", str(manifest)])  # default graceful
+    assert rc == 0
+    lines = manifest.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 2  # stub corpus = 2 docs
+    assert "falling back to StubIngestor" in capsys.readouterr().err
+
+
+def test_ingestion_cli_strict_hard_errors(monkeypatch, tmp_path):
+    from indianlegal_llm.ingestion import cli
+
+    monkeypatch.delenv("INGESTOR_STRICT", raising=False)
+    monkeypatch.setattr(cli, "get_ingestor", lambda *a, **k: _FailingIngestor())
+    manifest = tmp_path / "m.jsonl"
+    rc = cli.main(["--source", "aws-sc", "--strict", "--manifest", str(manifest)])
+    assert rc == 3  # missing extra (ImportError) -> exit 3, no fallback
