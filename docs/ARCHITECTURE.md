@@ -27,7 +27,7 @@ The contracts that travel between layers live in
 | Layer       | Module                          | Interface                          | Stub |
 |-------------|---------------------------------|------------------------------------|------|
 | Ingestion   | `ingestion/`                    | `BaseIngestor.fetch()`             | `StubIngestor` (offline) + real `aws-sc`/`aws-hc` (S3 parquet), `india-code`, `indian-kanoon`; chosen via `get_ingestor()` / `INGESTOR` |
-| Processing  | `processing/`                   | `BaseProcessor.process()`          | `StubProcessor` — naive overlapping word chunker |
+| Processing  | `processing/`                   | `BaseProcessor.process()`          | `StubProcessor` — paragraph-aware chunker (detects numbered/¶ paragraphs, keeps `para_start`/`para_end` in metadata) |
 | Embedding   | `rag/base.py`, `rag/embedder.py`| `BaseEmbedder.embed()`             | `StubEmbedder` — deterministic hashing vector |
 | Retrieval   | `rag/base.py`, `rag/retriever.py`| `BaseRetriever.add()/retrieve()`  | `InMemoryRetriever` — stopword-filtered token overlap |
 | Citations   | `rag/citation.py`               | (functions)                        | `SYSTEM_PROMPT`, `build_user_prompt`, `extract_cited_ids`, `to_citation` |

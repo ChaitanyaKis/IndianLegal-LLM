@@ -22,10 +22,14 @@ green-build gate (CLI runs, eval green, pytest passes) and the trust property.
   description); India Code act-URL discovery; richer SC text cleanup (strip the
   language-selector chrome embedded in some `raw_html`).
 
-## Milestone 2 — Real processing
+## Milestone 2 — Real processing (paragraph-aware chunking ✅ landed)
 
-- Replace `StubProcessor` with sentence/layout-aware chunking, dedup, and
-  citation-span detection. Preserve provenance per chunk.
+- `StubProcessor` detects the numbered/¶ paragraph structure of a judgment,
+  chunks on paragraph boundaries, and records each chunk's paragraph span
+  (`para_start`, `para_end`) in metadata — the basis for pinpoint citation
+  (e.g. "Puttaswamy para 297"). Provenance is preserved per chunk.
+- Follow-ups: sentence-level splitting within very long paragraphs, dedup of
+  near-duplicate paragraphs, and surfacing the paragraph span on `Citation`.
 
 ## Milestone 3 — Real retrieval (RAG workstream)
 
