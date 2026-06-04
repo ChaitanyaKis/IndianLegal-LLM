@@ -192,10 +192,30 @@ applies. Run the notebook **in the cloud** — never on a laptop (CLAUDE.md §5)
 
 ## Optional surfaces
 
+### API (FastAPI)
+
 ```bash
 pip install -e .[api]    # then: uvicorn indianlegal_llm.app.api:app --reload
-pip install -e .[demo]   # then: python -m indianlegal_llm.app.demo
 ```
+
+- `GET /health` → status, chunks indexed, ingestor + LLM backend in use.
+- `POST /answer` `{"question": "..."}` → `{text, refused, refusal_reason,
+  is_grounded, citations[...]}` where each citation is fully structured:
+  `chunk_id, title, neutral_citation, reference, pinpoint, para_start/para_end, url`.
+  The citation guard runs server-side, so a non-refused answer is always grounded.
+
+### Demo (Gradio) — free Hugging Face **ZeroGPU** Space
+
+```bash
+pip install -e .[demo]   # local: python -m indianlegal_llm.app.demo (stub on a laptop)
+```
+
+A chat UI that shows the full citation reference ("title, neutral citation ¶ N")
+with a click-through to the source, and renders refusals gracefully. On a free
+**ZeroGPU** Space only the LLM generation runs on the allocated GPU (`@spaces.GPU`)
+while retrieval + the citation guard run on CPU; the model is pulled HF-Hub → Space
+at runtime (never to a laptop). Set `LLM=remote` to use a hosted endpoint instead.
+Space config + deploy steps (both paths): [`spaces/`](spaces/).
 
 All optional surfaces and ingestors import-guard their dependencies, so the
 package always imports with the standard library alone.

@@ -10,7 +10,7 @@ from __future__ import annotations
 from .base import BaseLLM
 from .stub import StubLLM
 
-LLMS = ("stub", "transformers")
+LLMS = ("stub", "transformers", "remote")
 
 
 def get_llm(name: str, base_model: str = "microsoft/phi-4", **kwargs) -> BaseLLM:
@@ -26,4 +26,9 @@ def get_llm(name: str, base_model: str = "microsoft/phi-4", **kwargs) -> BaseLLM
         from .transformers_llm import TransformersLLM
 
         return TransformersLLM(model_id=base_model, **kwargs)
+    if key in ("remote", "http", "endpoint"):
+        from .remote_llm import RemoteLLM
+
+        # base_model/adapter don't apply to a hosted endpoint; ignore them.
+        return RemoteLLM()
     raise ValueError(f"unknown LLM backend {name!r}; choose from {', '.join(LLMS)}")

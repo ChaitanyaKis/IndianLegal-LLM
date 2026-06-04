@@ -90,6 +90,32 @@ def test_explicit_llm_is_never_overridden():
 
 
 # --------------------------------------------------------------------------- #
+# Remote LLM backend (HTTP; no GPU/weights)
+# --------------------------------------------------------------------------- #
+def test_get_llm_resolves_remote_backend():
+    from indianlegal_llm.model.remote_llm import RemoteLLM
+
+    assert isinstance(get_llm("remote"), RemoteLLM)
+
+
+def test_remote_llm_requires_endpoint(monkeypatch):
+    from indianlegal_llm.model.remote_llm import RemoteLLM
+
+    monkeypatch.delenv("REMOTE_LLM_URL", raising=False)
+    with pytest.raises(RuntimeError, match="REMOTE_LLM_URL"):
+        RemoteLLM().ensure_loaded()
+    # Configured -> validates without a network call.
+    RemoteLLM(url="https://example.com/v1/chat/completions").ensure_loaded()
+
+
+def test_build_pipeline_remote_unconfigured_falls_back(monkeypatch, capsys):
+    monkeypatch.delenv("REMOTE_LLM_URL", raising=False)
+    pipe = build_pipeline(Settings(llm="remote"), ingestor=StubIngestor())
+    assert pipe.llm_backend == "StubLLM"
+    assert "falling back to StubLLM" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------- #
 # Offline: LoRA adapter plumbing (the fine-tuned variant)
 # --------------------------------------------------------------------------- #
 def test_transformers_llm_accepts_adapter_without_loading():

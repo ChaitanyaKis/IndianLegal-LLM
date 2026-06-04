@@ -12,7 +12,8 @@ standard library. The base model must be Apache-2.0 or MIT (CLAUDE.md §2).
 
 from .base import BaseLLM
 from .registry import LLMS, get_llm
+from .remote_llm import RemoteLLM
 from .stub import StubLLM
 from .transformers_llm import TransformersLLM
 
-__all__ = ["BaseLLM", "StubLLM", "TransformersLLM", "get_llm", "LLMS"]
+__all__ = ["BaseLLM", "StubLLM", "TransformersLLM", "RemoteLLM", "get_llm", "LLMS"]

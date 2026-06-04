@@ -51,6 +51,7 @@ class Answerer:
             text=refusal_text(reason),
             citations=[],
             refused=True,
+            refusal_reason=reason,
         )
 
     def answer(self, question: str) -> Answer:

@@ -129,6 +129,8 @@ class Answer:
     text: str
     citations: list[Citation] = field(default_factory=list)
     refused: bool = False
+    #: Why the answer was refused (a short reason); empty when not refused.
+    refusal_reason: str = ""
 
     @property
     def is_grounded(self) -> bool:

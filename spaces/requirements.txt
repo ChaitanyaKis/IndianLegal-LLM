@@ -1,0 +1,24 @@
+# Hugging Face Space dependencies. The model is pulled from the HF Hub at runtime
+# (cloud-to-cloud) — no weights/adapters/corpora are vendored here.
+
+# The package itself (installs indianlegal_llm). Pin to a tag/commit for stability.
+git+https://github.com/ChaitanyaKis/IndianLegal-LLM.git
+
+# UI + ZeroGPU
+gradio>=5
+spaces
+
+# Real model serving (Path A — ZeroGPU). Base must be Apache-2.0/MIT (CLAUDE.md §2).
+transformers
+torch
+accelerate
+bitsandbytes
+peft
+
+# Retrieval from AWS Open Data (so the Space answers from the real corpus).
+pyarrow
+s3fs
+boto3
+
+# RemoteLLM (Path B) / web ingestion
+httpx
