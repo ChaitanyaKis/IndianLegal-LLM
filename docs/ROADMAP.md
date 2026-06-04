@@ -30,7 +30,10 @@ green-build gate (CLI runs, eval green, pytest passes) and the trust property.
 
 ## Milestone 4 — Real model + MIT adapter (Model workstream)
 
-- Wrap an Apache-2.0/MIT base model (Gemma 4 4B / Phi-4) behind `BaseLLM`.
+- Wrap a confirmed Apache-2.0/MIT base model behind `BaseLLM` — default
+  `microsoft/phi-4` (MIT); Gemma 4 (Apache-2.0, April 2026 release) only after
+  confirming its exact repo id on the current model card (Gemma 3 and earlier do
+  not qualify). Verify the license before download/fine-tune.
 - Fine-tune an Indian-law LoRA/QLoRA adapter; **ship the adapter under MIT**.
 - Train/infer in the cloud; only the 50–200 MB adapter is downloaded.
 

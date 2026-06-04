@@ -18,11 +18,15 @@ constraint, or propose an alternative that stays within bounds.
 ## 2. Licensing (LOCKED)
 
 - **Code + fine-tuned adapters ship under MIT.** See `LICENSE`.
-- **The base model MUST be Apache-2.0 or MIT licensed**, so MIT redistribution stays clean.
-  - ✅ Allowed examples: **Gemma 4 4B (Apache-2.0)**, **Phi-4 (MIT)**.
-  - ❌ **NEVER fine-tune a Llama-licensed or Gemma-*custom-licensed* base** for the
-    redistributable model. (Note: "Gemma 4 4B = Apache-2.0" is the cleanly redistributable
-    variant referenced here; do not substitute a custom-license Gemma.)
+- **Base model selection (precise):** the base model must be a **confirmed Apache-2.0 or MIT
+  model, verified against its CURRENT Hugging Face model card before use.**
+  - **Default = `microsoft/phi-4` (MIT).**
+  - **Alternative = Gemma 4 (Apache-2.0 as of its April 2026 release** — NOTE: **Gemma 3 and
+    earlier use Google's custom *Gemma Terms* and do NOT qualify**); if used, **confirm the exact
+    repo id and parameter size on the model card, and do NOT hardcode an unverified
+    `gemma-4-4b` string.**
+  - ❌ **NEVER fine-tune a Llama-licensed or Gemma-custom-licensed base** for the redistributable
+    model.
 - Adapters (LoRA / QLoRA) we train and ship are MIT. The base model is downloaded by the user
   under its own (Apache-2.0/MIT) license; we never redistribute the base weights ourselves.
 

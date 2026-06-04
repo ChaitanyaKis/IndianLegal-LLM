@@ -10,18 +10,16 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-# Base models that are license-clean for MIT redistribution (CLAUDE.md §2).
+# Base models confirmed license-clean for MIT redistribution (CLAUDE.md §2).
 # This is advisory metadata; the skeleton never downloads a base model.
 #
-# VERIFY BEFORE USE: every entry's license string MUST be confirmed against the
-# model card before that base is downloaded or fine-tuned. In particular, "Gemma
-# 4 4B = Apache-2.0" is carried here from the LOCKED premise in CLAUDE.md §2, but
-# real Google Gemma releases historically ship under the custom *Gemma Terms of
-# Use* (non-OSI), NOT Apache-2.0 — confirm the exact variant/license, or prefer
-# Phi-4 (genuinely MIT) as the redistribution-safe default. See docs/ROADMAP.md.
+# POLICY: only list a model here once its license is CONFIRMED Apache-2.0 or MIT
+# against its CURRENT Hugging Face model card, using its EXACT repo id. Do not add
+# an unverified placeholder id. Gemma 4 (Apache-2.0 as of its April 2026 release)
+# may be added once you confirm the exact repo id + parameter size on the model
+# card; Gemma 3 and earlier use Google's custom Gemma Terms and do NOT qualify.
 LICENSE_CLEAN_BASE_MODELS = {
-    "microsoft/phi-4": "MIT",
-    "google/gemma-4-4b": "Apache-2.0",  # <-- verify against model card (see above)
+    "microsoft/phi-4": "MIT",  # default — genuinely MIT
 }
 
 

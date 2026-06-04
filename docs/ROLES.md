@@ -32,10 +32,12 @@ happens in `pipeline.py :: build_pipeline()`.
 
 - **Owns:** `BaseLLM`, `StubLLM`.
 - **Goal:** wrap a real base model and an MIT-licensed adapter behind `BaseLLM`.
-- **Hard rule:** the base model MUST be Apache-2.0 or MIT (e.g. Gemma 4 4B, Phi-4);
-  the redistributable artifact is the MIT adapter, **never** a Llama/Gemma-custom
-  fine-tune (CLAUDE.md §2). Training/inference run in the cloud; only the
-  50–200 MB adapter comes down (CLAUDE.md §5).
+- **Hard rule:** the base model MUST be a confirmed Apache-2.0 or MIT model, verified
+  against its current HF model card before use — default `microsoft/phi-4` (MIT), with
+  Gemma 4 (Apache-2.0, April 2026 release; Gemma 3 and earlier do NOT qualify) as a
+  verified alternative. The redistributable artifact is the MIT adapter, **never** a
+  Llama/Gemma-custom fine-tune (CLAUDE.md §2). Training/inference run in the cloud; only
+  the 50–200 MB adapter comes down (CLAUDE.md §5).
 
 ## Evaluation / QA
 

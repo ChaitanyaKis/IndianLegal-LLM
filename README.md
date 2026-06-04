@@ -102,8 +102,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Licensing & data (clean by construction)
 
 - **Code + fine-tuned adapters: MIT** (see [LICENSE](LICENSE)).
-- **Base model: Apache-2.0 or MIT only** — e.g. Gemma 4 4B (Apache-2.0) or Phi-4
-  (MIT). We never fine-tune or redistribute a Llama/Gemma-custom-licensed base.
+- **Base model: a confirmed Apache-2.0 or MIT model**, verified against its current
+  Hugging Face model card before use. Default is `microsoft/phi-4` (MIT); Gemma 4
+  (Apache-2.0 as of its April 2026 release) is an alternative *once its exact repo id
+  is confirmed* (Gemma 3 and earlier use Google's custom Gemma Terms and do **not**
+  qualify). We never fine-tune or redistribute a Llama/Gemma-custom-licensed base.
 - **Data: commercially clean** — AWS Open Data (Indian SC/HC judgments), India
   Code, Indian Kanoon. **Never** SCC Online, Manupatra, or ILDC. Every source is
   logged with `url, court, date, license`. See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
