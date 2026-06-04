@@ -88,6 +88,7 @@ class Citation:
     title: str
     court: str
     url: str
+    neutral_citation: str = ""  # e.g. "2017 INSC 1"; "" when the source has none
     para_start: int | None = None
     para_end: int | None = None
 
@@ -99,6 +100,21 @@ class Citation:
         if self.para_end is None or self.para_end == self.para_start:
             return f"¶ {self.para_start}"
         return f"¶ {self.para_start}-{self.para_end}"
+
+    @property
+    def reference(self) -> str:
+        """Full human-readable citation: '<title>, <neutral citation> <pinpoint>'.
+
+        Title for readability, neutral citation for verifiability, pinpoint to the
+        paragraph. Each component is omitted gracefully when absent. Built ONLY
+        from the retrieved chunk's trusted metadata — never from model free text.
+        """
+        label = self.title
+        if self.neutral_citation:
+            label = f"{label}, {self.neutral_citation}"
+        if self.pinpoint:
+            label = f"{label} {self.pinpoint}"
+        return label
 
 
 @dataclass

@@ -24,10 +24,10 @@ from ..model.base import BaseLLM
 from ..schemas import Answer
 from .base import BaseRetriever
 from .citation import (
-    REFUSAL_MESSAGE,
     SYSTEM_PROMPT,
+    assess_citations,
     build_user_prompt,
-    extract_cited_ids,
+    refusal_text,
     to_citation,
 )
 
@@ -45,25 +45,30 @@ class Answerer:
         self.llm = llm
         self.settings = settings
 
+    def _refuse(self, question: str, reason: str) -> Answer:
+        return Answer(
+            question=question,
+            text=refusal_text(reason),
+            citations=[],
+            refused=True,
+        )
+
     def answer(self, question: str) -> Answer:
         retrieved = self.retriever.retrieve(question, self.settings.top_k)
         user_prompt = build_user_prompt(question, retrieved)
         raw = self.llm.generate(SYSTEM_PROMPT, user_prompt)
 
-        # Map retrieved ids -> their chunks; only these may be cited.
+        # Map retrieved ids -> their chunks; only these may be cited. The Citation
+        # objects below are built purely from this trusted metadata, never from the
+        # model's free text (a fabricated case/citation is structurally impossible).
         retrieved_by_id = {rc.chunk.chunk_id: rc.chunk for rc in retrieved}
-        valid_cited_ids = [
-            cid for cid in extract_cited_ids(raw) if cid in retrieved_by_id
-        ]
 
-        # Trust property: no valid citation -> refuse. No ungrounded claims, ever.
-        if not valid_cited_ids:
-            return Answer(
-                question=question,
-                text=REFUSAL_MESSAGE,
-                citations=[],
-                refused=True,
-            )
+        # Guard 1 (retrieved-set): only cited ids actually retrieved may stand.
+        # Guard 2 (quote grounding, global): every quoted proposition must be
+        # verbatim in some retrieved chunk. Refuse with a clear reason otherwise.
+        valid_cited_ids, refusal_reason = assess_citations(raw, retrieved_by_id)
+        if refusal_reason is not None:
+            return self._refuse(question, refusal_reason)
 
         citations = [to_citation(retrieved_by_id[cid]) for cid in valid_cited_ids]
         return Answer(
