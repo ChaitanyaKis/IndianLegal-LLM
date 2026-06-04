@@ -38,14 +38,20 @@ green-build gate (CLI runs, eval green, pytest passes) and the trust property.
 - Keep the Answerer's refuse-unless-cited contract intact; add a relevance
   threshold so weak matches still refuse.
 
-## Milestone 4 — Real model + MIT adapter (Model workstream)
+## Milestone 4 — Real model serving (Model workstream) — serving ✅ landed
 
-- Wrap a confirmed Apache-2.0/MIT base model behind `BaseLLM` — default
-  `microsoft/phi-4` (MIT); Gemma 4 (Apache-2.0, April 2026 release) only after
-  confirming its exact repo id on the current model card (Gemma 3 and earlier do
-  not qualify). Verify the license before download/fine-tune.
-- Fine-tune an Indian-law LoRA/QLoRA adapter; **ship the adapter under MIT**.
-- Train/infer in the cloud; only the 50–200 MB adapter is downloaded.
+- `TransformersLLM` serves a confirmed Apache-2.0/MIT base model behind `BaseLLM`
+  — default `microsoft/phi-4` (MIT), loaded 4-bit via bitsandbytes with
+  `device_map="auto"`, selected by `LLM=transformers` + `BASE_MODEL`. Greedy/low
+  temperature for legal determinism; the system prompt requires a verbatim quote +
+  `[chunk_id]` per proposition to maximize the Hour-4 quote-grounding guard.
+- Runs IN THE CLOUD: loading is hard-gated on a CUDA GPU, so multi-GB weights are
+  never pulled to a laptop (CLAUDE.md §5); `build_pipeline()` falls back to the
+  StubLLM otherwise. The eval harness is pinned to the StubLLM (deterministic).
+- Gemma 4 (Apache-2.0, April 2026 release) only after confirming its exact repo id
+  on the current model card (Gemma 3 and earlier do not qualify).
+- Follow-up: fine-tune an Indian-law LoRA/QLoRA adapter and **ship the adapter
+  under MIT**; train/infer in the cloud, only the 50–200 MB adapter comes down.
 
 ## Milestone 5 — Evaluation at scale (QA workstream)
 

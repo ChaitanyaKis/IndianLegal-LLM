@@ -84,6 +84,12 @@ class Settings:
         If True, a missing [ingestion] extra / network / credential is a HARD
         error instead of falling back to the stub. Default False (graceful
         fallback with a stderr warning). Env: INGESTOR_STRICT=1.
+    llm:
+        Which LLM backend to serve. "transformers" (real, loads ``base_model``
+        4-bit on a CUDA GPU) or "stub" (offline, deterministic). The real backend
+        needs the `model` extra + a GPU; `build_pipeline()` falls back to "stub"
+        if it is unavailable so the skeleton always runs offline (CLAUDE.md §6).
+        Env: LLM. The eval harness is always pinned to the stub.
     """
 
     base_model: str = "microsoft/phi-4"
@@ -94,6 +100,7 @@ class Settings:
     ingest_limit: int = 200
     manifest_path: str = "data/source_manifest.jsonl"
     ingestor_strict: bool = False
+    llm: str = "transformers"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -109,6 +116,7 @@ class Settings:
             ingestor_strict=_parse_bool(
                 os.getenv("INGESTOR_STRICT"), cls.ingestor_strict, name="INGESTOR_STRICT"
             ),
+            llm=os.getenv("LLM", cls.llm),
         )
 
     def base_model_is_license_clean(self) -> bool:

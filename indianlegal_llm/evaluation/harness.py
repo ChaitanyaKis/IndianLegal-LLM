@@ -24,6 +24,7 @@ import sys
 from dataclasses import dataclass
 
 from ..ingestion.stub import StubIngestor
+from ..model.stub import StubLLM
 from ..pipeline import Pipeline, build_pipeline
 from ..schemas import Answer
 from .cases import CASES
@@ -76,10 +77,11 @@ def _score_case(case: EvalCase, answer: Answer) -> CaseResult:
 def run(pipeline: Pipeline | None = None, cases: list[EvalCase] | None = None) -> dict:
     """Run the eval and return a metrics dict (also used by tests).
 
-    The eval pins the offline :class:`StubIngestor` so the green-build gate is
-    deterministic and network-independent regardless of the configured INGESTOR.
+    The eval pins the offline :class:`StubIngestor` and :class:`StubLLM` so the
+    green-build gate is deterministic and network-/GPU-independent regardless of
+    the configured INGESTOR and LLM.
     """
-    pipeline = pipeline or build_pipeline(ingestor=StubIngestor())
+    pipeline = pipeline or build_pipeline(ingestor=StubIngestor(), llm=StubLLM())
     cases = cases if cases is not None else CASES
 
     results = [_score_case(c, pipeline.answer(c.question)) for c in cases]

@@ -36,8 +36,10 @@ demo = ["gradio"]
 # sources (httpx). The base model MUST stay Apache-2.0/MIT (CLAUDE.md §2).
 ingestion = ["pyarrow", "s3fs", "boto3", "httpx"]
 rag = ["sentence-transformers", "faiss-cpu"]
-# Base model MUST be Apache-2.0 or MIT (CLAUDE.md §2). Adapters ship MIT.
-model = ["transformers", "torch", "peft", "accelerate"]
+# Real model serving: Phi-4 (MIT, CLAUDE.md §2) 4-bit via bitsandbytes. Loaded
+# only on a CUDA GPU; adapters (peft) ship MIT. Base weights are downloaded by the
+# user in the cloud and never redistributed by us.
+model = ["transformers", "torch", "accelerate", "bitsandbytes", "peft"]
 dev = ["pytest", "ruff"]
 
 [project.scripts]

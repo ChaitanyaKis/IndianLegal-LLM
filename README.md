@@ -91,7 +91,7 @@ and evaluation harness all call it; none of them construct components directly.
 | Processing   | `BaseProcessor.process()`           | `StubProcessor` (naive chunker)      |
 | Embedding    | `BaseEmbedder.embed()`              | `StubEmbedder` (hashing) — *present but not wired into the skeleton* |
 | Retrieval    | `BaseRetriever.add()/retrieve()`    | `InMemoryRetriever` (lexical overlap)|
-| Model        | `BaseLLM.generate()`                | `StubLLM` (cites first source)       |
+| Model        | `BaseLLM.generate()`                | `StubLLM` (offline) + real `TransformersLLM` (Phi-4 4-bit, GPU) via `LLM`/`BASE_MODEL` |
 | Answering    | `Answerer.answer()`                 | enforces the trust property          |
 
 Each stub is replaced by a real implementation **behind the same interface**.
@@ -134,6 +134,25 @@ streamed and never downloaded whole to disk (CLAUDE.md §5). Set `INGESTOR=aws-s
 (default) or `INGESTOR=stub` to choose what `build_pipeline()` indexes; if a real
 source isn't available it falls back to the stub so the skeleton always runs. See
 [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
+
+## Real model serving (Phi-4)
+
+By default the answering LLM is the offline `StubLLM` only as a *fallback*; the
+configured default is the real `TransformersLLM`. In a **cloud GPU** environment:
+
+```bash
+pip install -e .[model]
+# Serves BASE_MODEL (microsoft/phi-4, MIT) 4-bit via bitsandbytes, device_map=auto
+python -m indianlegal_llm.app.cli "Is privacy a fundamental right in India?"
+```
+
+The model is loaded **only on a CUDA GPU** — on a CPU/laptop `build_pipeline()`
+refuses to download the multi-GB weights (CLAUDE.md §5) and transparently falls
+back to the `StubLLM` (so local dev and the CLI always run). Force the stub with
+`LLM=stub`. The eval harness is always pinned to the stub, so it stays
+deterministic and GPU-free. Generation is low-temperature (greedy) for legal
+determinism, and the system prompt requires a **verbatim quote + `[chunk_id]`**
+per proposition so answers pass the citation guard (grounded, cited, pinpointed).
 
 ## Optional surfaces
 

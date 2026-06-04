@@ -44,16 +44,17 @@ SYSTEM_PROMPT = (
     "\n"
     "RULES (non-negotiable):\n"
     "1. Answer ONLY using the numbered sources provided in the user message.\n"
-    "2. Every factual or legal statement you make MUST be supported by a citation "
-    "to the source's identifier, written in square brackets, e.g. the bracketed "
-    "id shown next to each source.\n"
-    "3. Cite ONLY identifiers that appear in the provided sources. Never invent an "
-    "identifier and never cite from memory.\n"
-    "4. If the provided sources do not support an answer - including any non-Indian"
+    "2. Support EACH legal proposition you state with a SHORT VERBATIM QUOTE from a "
+    "source, in double quotes, immediately followed by that source's bracketed id "
+    "(and its paragraph pinpoint if one is shown), e.g.: \"...quoted text...\" "
+    "[<chunk_id>]. Copy the quote character-for-character from the source.\n"
+    "3. Cite ONLY identifiers that appear in the provided sources, and quote ONLY "
+    "text that appears in the source you cite. Never invent an identifier, a case "
+    "name, a citation, or a quotation, and never cite from memory.\n"
+    "4. Keep unquoted commentary to a minimum — every legal claim must rest on a "
+    "quoted, cited passage.\n"
+    "5. If the provided sources do not support an answer - including any non-Indian"
     "-law or out-of-domain question - you MUST refuse and cite nothing.\n"
-    "5. When you put text in quotation marks, it MUST be verbatim from a cited "
-    "source. Do not paraphrase inside quotes, and never state a case name or "
-    "citation that is not in the cited source.\n"
     "6. No ungrounded legal claims, ever."
 )
 
@@ -71,13 +72,22 @@ def build_user_prompt(question: str, retrieved: list[RetrievedChunk]) -> str:
     else:
         for rc in retrieved:
             c = rc.chunk
-            lines.append(f"[{c.chunk_id}] {c.court} - {c.title}")
+            # Surface the paragraph pinpoint so the model can reference it.
+            ps, pe = c.metadata.get("para_start"), c.metadata.get("para_end")
+            if ps is None:
+                pin = ""
+            elif pe is None or pe == ps:
+                pin = f" ¶ {ps}"
+            else:
+                pin = f" ¶ {ps}-{pe}"
+            lines.append(f"[{c.chunk_id}] {c.court} - {c.title}{pin}")
             lines.append(c.text)
             lines.append("")  # blank line separates sources
     lines.append(
-        "Instructions: Answer using ONLY the sources above and cite the "
-        "square-bracketed identifier of each source you rely on. If the sources "
-        "do not contain the answer, refuse and cite nothing."
+        "Instructions: Answer using ONLY the sources above. Support each legal "
+        "proposition with a short verbatim quote in double quotes followed by the "
+        "source's square-bracketed id (and its paragraph pinpoint if shown). If the "
+        "sources do not contain the answer, refuse and cite nothing."
     )
     return "\n".join(lines)
 

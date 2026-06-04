@@ -12,6 +12,13 @@ there is no network — `build_pipeline()` falls back to the offline
 :class:`StubIngestor` with a clear warning, so the zero-dependency skeleton always
 runs and the green-build invariant (CLAUDE.md §6) holds. An explicitly passed
 ``ingestor`` is never overridden (the eval harness relies on this).
+
+LLM selection mirrors this: ``Settings.llm`` (default ``transformers``, serving
+``Settings.base_model`` 4-bit on a CUDA GPU) is resolved via the model registry.
+If the real backend can't load — no GPU, or the `model` extra is missing — it
+falls back to the offline :class:`StubLLM` with a clear warning, so local/offline
+dev still runs. An explicitly passed ``llm`` is never overridden (the eval
+harness pins :class:`StubLLM` for determinism).
 """
 
 from __future__ import annotations
@@ -24,6 +31,7 @@ from .ingestion.base import BaseIngestor
 from .ingestion.registry import get_ingestor
 from .ingestion.stub import StubIngestor
 from .model.base import BaseLLM
+from .model.registry import get_llm
 from .model.stub import StubLLM
 from .processing.base import BaseProcessor
 from .processing.stub import StubProcessor
@@ -52,9 +60,41 @@ class Pipeline:
         #: ``source_name`` of the ingestor actually used (after any fallback).
         self.source = source
 
+    @property
+    def llm_backend(self) -> str:
+        """Class name of the LLM actually serving (after any fallback)."""
+        return type(self.answerer.llm).__name__
+
     def answer(self, question: str) -> Answer:
         """Answer a question, citation-grounded (or refuse)."""
         return self.answerer.answer(question)
+
+
+def _resolve_llm(settings: Settings) -> BaseLLM:
+    """Resolve the configured LLM, falling back to the stub if it can't load.
+
+    Loading is attempted eagerly here (via ``ensure_loaded``) so unavailability —
+    missing `model` extra, or no CUDA GPU (in which case weights are NOT
+    downloaded, CLAUDE.md §5) — degrades to the offline StubLLM before answering,
+    keeping the CLI runnable (CLAUDE.md §6).
+    """
+    if (settings.llm or "stub").strip().lower() == "stub":
+        return StubLLM()
+    try:
+        llm = get_llm(settings.llm, base_model=settings.base_model)
+        ensure_loaded = getattr(llm, "ensure_loaded", None)
+        if ensure_loaded is not None:
+            ensure_loaded()
+        return llm
+    except Exception as exc:  # missing extra / no GPU / load failure
+        print(
+            f"[indianlegal_llm] WARNING: LLM '{settings.llm}' unavailable "
+            f"({type(exc).__name__}: {exc}); falling back to StubLLM. Use LLM=stub "
+            f"for local dev, or a cloud CUDA GPU with the model extra "
+            f"(pip install -e .[model]).",
+            file=sys.stderr,
+        )
+        return StubLLM()
 
 
 def _ingest(ingestor: BaseIngestor, processor: BaseProcessor) -> tuple[list[dict], list]:
@@ -102,7 +142,9 @@ def build_pipeline(
     settings = settings or Settings.from_env()
     processor = processor or StubProcessor()
     retriever = retriever or InMemoryRetriever()
-    llm = llm or StubLLM()
+    # Resolve the LLM (real by default) only when not explicitly supplied; the
+    # eval harness passes StubLLM() so it is deterministic and offline.
+    llm = llm if llm is not None else _resolve_llm(settings)
 
     auto = ingestor is None
     if auto:
