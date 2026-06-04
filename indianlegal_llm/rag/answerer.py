@@ -30,6 +30,7 @@ from .citation import (
     refusal_text,
     to_citation,
 )
+from .lang import detect_language
 
 
 class Answerer:
@@ -55,8 +56,12 @@ class Answerer:
         )
 
     def answer(self, question: str) -> Answer:
+        # Cross-lingual: an Indian-language question retrieves over the English
+        # corpus (multilingual embedder) and is EXPLAINED in the user's language,
+        # while quotes stay verbatim in English so the guard still verifies them.
         retrieved = self.retriever.retrieve(question, self.settings.top_k)
-        user_prompt = build_user_prompt(question, retrieved)
+        answer_language = detect_language(question)
+        user_prompt = build_user_prompt(question, retrieved, answer_language=answer_language)
         raw = self.llm.generate(SYSTEM_PROMPT, user_prompt)
 
         # Map retrieved ids -> their chunks; only these may be cited. The Citation

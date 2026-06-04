@@ -35,13 +35,15 @@ def test_golden_set_loads_and_partitions_by_tier():
     assert det == CASES
     assert all(TIER_DETERMINISTIC in c.tiers for c in det)
     assert all(TIER_QUALITY in c.tiers for c in qual)
-    # The seed deterministic tier is the 5 existing cases.
+    # The seed deterministic tier: 5 English cases + 2 Indic out-of-corpus refusals.
     assert {c.case_id for c in det} == {
         "privacy",
         "basic-structure",
         "capital-of-france",
         "european-union-structure",
         "us-bill-of-rights",
+        "hindi-out-of-corpus",
+        "telugu-out-of-corpus",
     }
 
 

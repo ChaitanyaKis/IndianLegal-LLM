@@ -34,6 +34,7 @@ from ..model.base import BaseLLM
 from ..model.stub import StubLLM
 from ..pipeline import Pipeline, build_pipeline
 from ..rag.answerer import Answerer
+from ..rag.retriever import InMemoryRetriever
 from ..schemas import Answer
 from .cases import CASES
 from .schema import EXPECT_ANSWER, EXPECT_REFUSE, EvalCase
@@ -116,7 +117,9 @@ def guard_self_check() -> tuple[bool, list[str]]:
     Returns (ok, failures). Mirrors the trust property: retrieved-set filter,
     quote-grounding, metadata-only citations, and out-of-corpus refusal.
     """
-    base = build_pipeline(ingestor=StubIngestor(), llm=StubLLM())
+    base = build_pipeline(
+        ingestor=StubIngestor(), llm=StubLLM(), retriever=InMemoryRetriever()
+    )
     retriever = base.answerer.retriever
     settings = base.settings
     question = "Is privacy a fundamental right in India?"
@@ -170,7 +173,9 @@ def run(pipeline: Pipeline | None = None, cases: list[EvalCase] | None = None) -
     Pins the offline :class:`StubIngestor` + :class:`StubLLM` so the gate is
     deterministic and network-/GPU-independent regardless of INGESTOR / LLM.
     """
-    pipeline = pipeline or build_pipeline(ingestor=StubIngestor(), llm=StubLLM())
+    pipeline = pipeline or build_pipeline(
+        ingestor=StubIngestor(), llm=StubLLM(), retriever=InMemoryRetriever()
+    )
     cases = cases if cases is not None else CASES
 
     results = [_score_case(pipeline, c) for c in cases]

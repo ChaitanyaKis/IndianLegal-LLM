@@ -72,6 +72,55 @@
     },
 
     {
+      "case_id": "hindi-out-of-corpus",
+      "question": "फ्रांस की राजधानी क्या है?",
+      "should_answer": false,
+      "expected_doc_id": null,
+      "expected_authority": "",
+      "expected_proposition": "",
+      "expected_pinpoint": "",
+      "verified_by": "seed (maintainer)",
+      "tiers": ["deterministic"],
+      "note": "Hindi out-of-domain ('What is the capital of France?'): must refuse cross-lingually."
+    },
+    {
+      "case_id": "telugu-out-of-corpus",
+      "question": "ఫ్రాన్స్ రాజధాని ఏది?",
+      "should_answer": false,
+      "expected_doc_id": null,
+      "expected_authority": "",
+      "expected_proposition": "",
+      "expected_pinpoint": "",
+      "verified_by": "seed (maintainer)",
+      "tiers": ["deterministic"],
+      "note": "Telugu out-of-domain ('What is the capital of France?'): must refuse cross-lingually."
+    },
+    {
+      "case_id": "hindi-privacy",
+      "question": "क्या भारत में निजता एक मौलिक अधिकार है?",
+      "should_answer": true,
+      "expected_doc_id": null,
+      "expected_authority": "K. S. Puttaswamy v. Union of India",
+      "expected_proposition": "the right to privacy is a fundamental right",
+      "expected_pinpoint": "",
+      "verified_by": "seed (maintainer); Hindi phrasing TODO: native speaker to verify",
+      "tiers": ["quality"],
+      "note": "Hindi 'Is privacy a fundamental right in India?' -> Hindi explanation + English verbatim quote."
+    },
+    {
+      "case_id": "telugu-basic-structure",
+      "question": "భారత రాజ్యాంగం యొక్క మౌలిక నిర్మాణ సిద్ధాంతం ఏమిటి?",
+      "should_answer": true,
+      "expected_doc_id": null,
+      "expected_authority": "Kesavananda Bharati v. State of Kerala",
+      "expected_proposition": "basic structure",
+      "expected_pinpoint": "",
+      "verified_by": "seed (maintainer); Telugu phrasing TODO: native speaker to verify",
+      "tiers": ["quality"],
+      "note": "Telugu basic-structure question -> Telugu explanation + English verbatim quote."
+    },
+
+    {
       "case_id": "TODO-pinpoint-example",
       "question": "TODO (lawyer): a real Indian-law question whose answer pinpoints a paragraph.",
       "should_answer": true,

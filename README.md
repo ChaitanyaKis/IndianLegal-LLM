@@ -173,6 +173,17 @@ deterministic and GPU-free. Generation is low-temperature (greedy) for legal
 determinism, and the system prompt requires a **verbatim quote + `[chunk_id]`**
 per proposition so answers pass the citation guard (grounded, cited, pinpointed).
 
+### Indic-language support (cross-lingual, trust intact)
+
+Ask in an Indian language (Hindi, Telugu, Tamil, Malayalam, …): the language is
+detected, the query retrieves over the English corpus (multilingual-e5 via
+`VECTOR_BACKEND=e5`), and the **explanation is written in your language** — but the
+**quote stays verbatim in the source language (English)** so the citation guard
+still verifies it. A *translated* quote is refused. This mirrors legal practice:
+quote the authority, explain in the vernacular. Citations/pinpoints come from
+metadata as always. (The deterministic gate stays on the lexical retriever; e5 is
+the real/quality tier.)
+
 ### Fine-tuning (QLoRA)
 
 [`notebooks/finetune_qlora.ipynb`](notebooks/finetune_qlora.ipynb) QLoRA-tunes
@@ -229,7 +240,10 @@ package always imports with the standard library alone.
 - [docs/ROLES.md](docs/ROLES.md) — workstreams and ownership
 - [docs/ROADMAP.md](docs/ROADMAP.md) — stub → real, milestone by milestone
 - [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) — allowed/forbidden sources & provenance
+- [docs/PITCH.md](docs/PITCH.md) — demo + traction summary (the trust architecture, metrics)
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to add a real implementation
+- [SECURITY.md](SECURITY.md) — reporting (esp. citation-guard bypasses)
+- [spaces/](spaces/) — free Hugging Face ZeroGPU demo config (+ RemoteLLM path)
 
 ## License
 

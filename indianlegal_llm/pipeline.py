@@ -70,6 +70,35 @@ class Pipeline:
         return self.answerer.answer(question)
 
 
+def _resolve_retriever(settings: Settings) -> BaseRetriever:
+    """Resolve the retriever from VECTOR_BACKEND, falling back to lexical.
+
+    "memory" (default) is the lexical :class:`InMemoryRetriever`. "e5" is the
+    cross-lingual :class:`EmbeddingRetriever` (multilingual-e5); if its deps are
+    missing it degrades to the lexical retriever so the skeleton always runs.
+    """
+    backend = (settings.vector_backend or "memory").strip().lower()
+    if backend in ("memory", "lexical", "stub"):
+        return InMemoryRetriever()
+    if backend in ("e5", "embedding", "multilingual-e5", "vector"):
+        try:
+            from .rag.embedding_retriever import EmbeddingRetriever
+
+            retriever = EmbeddingRetriever()
+            retriever.ensure_loaded()  # imports sentence-transformers + loads e5
+            return retriever
+        except Exception as exc:  # missing extra / model load failure
+            print(
+                f"[indianlegal_llm] WARNING: vector backend '{settings.vector_backend}' "
+                f"unavailable ({type(exc).__name__}: {exc}); falling back to the "
+                f"lexical InMemoryRetriever. Install the rag extra for cross-lingual "
+                f"retrieval (pip install -e .[rag]).",
+                file=sys.stderr,
+            )
+            return InMemoryRetriever()
+    return InMemoryRetriever()
+
+
 def _resolve_llm(settings: Settings) -> BaseLLM:
     """Resolve the configured LLM, falling back to the stub if it can't load.
 
@@ -143,9 +172,10 @@ def build_pipeline(
     """
     settings = settings or Settings.from_env()
     processor = processor or StubProcessor()
-    retriever = retriever or InMemoryRetriever()
-    # Resolve the LLM (real by default) only when not explicitly supplied; the
-    # eval harness passes StubLLM() so it is deterministic and offline.
+    # Resolve the retriever (lexical by default, e5 if configured) and the LLM
+    # (real by default) only when not explicitly supplied; the eval harness passes
+    # InMemoryRetriever() + StubLLM() so it is deterministic and offline.
+    retriever = retriever if retriever is not None else _resolve_retriever(settings)
     llm = llm if llm is not None else _resolve_llm(settings)
 
     auto = ingestor is None

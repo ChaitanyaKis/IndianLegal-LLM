@@ -45,7 +45,7 @@ model = ["transformers", "torch", "accelerate", "bitsandbytes", "peft"]
 finetune = ["unsloth", "trl", "datasets", "transformers", "peft", "bitsandbytes", "accelerate"]
 # Dev/CI tooling. The deterministic gate itself needs only the standard library;
 # fastapi + httpx are added so the offline API integration test runs in CI.
-dev = ["pytest", "ruff", "fastapi", "httpx"]
+dev = ["pytest", "ruff", "black", "pre-commit", "fastapi", "httpx"]
 
 [project.scripts]
 indianlegal-llm = "indianlegal_llm.app.cli:main"

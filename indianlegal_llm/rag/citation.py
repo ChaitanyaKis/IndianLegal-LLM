@@ -55,16 +55,26 @@ SYSTEM_PROMPT = (
     "quoted, cited passage.\n"
     "5. If the provided sources do not support an answer - including any non-Indian"
     "-law or out-of-domain question - you MUST refuse and cite nothing.\n"
-    "6. No ungrounded legal claims, ever."
+    "6. If the question is in an Indian language, write your EXPLANATION in that "
+    "language, but keep every quoted passage VERBATIM in the source's language "
+    "(English) - never translate text inside quotation marks. The [chunk_id] and "
+    "the citation stay as given.\n"
+    "7. No ungrounded legal claims, ever."
 )
 
 
-def build_user_prompt(question: str, retrieved: list[RetrievedChunk]) -> str:
+def build_user_prompt(
+    question: str, retrieved: list[RetrievedChunk], answer_language: str = "en"
+) -> str:
     """Render the question and retrieved sources into the user prompt.
 
     Each source is a header line ``[<chunk_id>] <court> - <title>`` followed by the
     chunk text. The id is the first bracketed token of each block so a model can
     align its citation to a real, retrieved id.
+
+    ``answer_language`` (an ISO code, e.g. "hi") adds a cross-lingual directive:
+    explain in that language but keep quotes verbatim in English (the source
+    language) — so the quote-grounding guard still verifies them.
     """
     lines = [f"Question: {question}", "", "Sources:"]
     if not retrieved:
@@ -89,6 +99,14 @@ def build_user_prompt(question: str, retrieved: list[RetrievedChunk]) -> str:
         "source's square-bracketed id (and its paragraph pinpoint if shown). If the "
         "sources do not contain the answer, refuse and cite nothing."
     )
+    if answer_language and answer_language != "en":
+        from .lang import language_name
+
+        lines.append(
+            f"Respond in {language_name(answer_language)}. Keep every quoted passage "
+            "VERBATIM in English (the source language) - do NOT translate text inside "
+            "quotation marks; the [chunk_id] stays as shown."
+        )
     return "\n".join(lines)
 
 
@@ -159,7 +177,11 @@ def _normalize(text: str) -> str:
     text = "".join(ch for ch in text if ch not in _ZERO_WIDTH)
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     text = text.lower()
-    return re.sub(r"[^a-z0-9]+", " ", text).strip()
+    # Keep Unicode word characters (any script) so a cross-lingual quote is NOT
+    # collapsed to empty: a translated (e.g. Hindi) quote stays comparable and is
+    # correctly found ungrounded against the English source. Punctuation/space
+    # runs become a single space.
+    return re.sub(r"\W+", " ", text, flags=re.UNICODE).strip()
 
 
 def _canonicalize_quotes(text: str) -> str:
