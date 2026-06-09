@@ -41,6 +41,13 @@ Usage (on a Kaggle GPU notebook)
         --embed-scope 2023-2025 \
         --llm transformers          # omit / use stub for a retrieval-only eval
 
+On a multi-GPU host the embed pass shards encoding data-parallel across all CUDA
+devices once the corpus clears ``--multi-gpu-threshold`` (default 50k chunks); e5
+fits on one 16 GB GPU, so this is throughput, not model sharding. Extraction stays
+on the CPU, independent of the GPU path. Run this AS A SCRIPT (the multi-process
+pool uses the "spawn" start method, which needs this module's ``__main__`` guard);
+do not import and call ``main()`` from a guard-less notebook cell.
+
 Run ``python scripts/kaggle_run.py --help`` for every knob.
 """
 
@@ -49,6 +56,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -69,7 +77,10 @@ from indianlegal_llm.config import Settings  # noqa: E402
 from indianlegal_llm.evaluation import quality  # noqa: E402
 from indianlegal_llm.ingestion.local_sc import LocalSCIngestor  # noqa: E402
 from indianlegal_llm.pipeline import build_pipeline  # noqa: E402
-from indianlegal_llm.rag.embedding_retriever import EmbeddingRetriever  # noqa: E402
+from indianlegal_llm.rag.embedding_retriever import (  # noqa: E402
+    EmbeddingRetriever,
+    cuda_device_count,
+)
 
 # The literal tar name data_pipeline.corpus.extract_year opens per year.
 _TAR_NAME = "english.tar"
@@ -471,6 +482,7 @@ def run_embed_index(
     limit_per_year: int | None,
     embed_limit: int,
     allow_agpl: bool,
+    multi_gpu_threshold: int,
 ):
     """Build the e5 vector index over the embed-scope real text and persist it.
 
@@ -501,6 +513,20 @@ def run_embed_index(
             "the e5 index needs sentence-transformers; install the rag extra "
             "(pip install -e .[rag]) before running the embed pass."
         ) from exc
+
+    # Multi-GPU data-parallel embedding: e5 fits on one 16 GB GPU, so this is pure
+    # throughput sharding. The threshold is read by MultilingualE5Embedder from the
+    # env at construction (inside build_pipeline), so set it BEFORE building. The
+    # embedder logs which path (single- vs multi-device) actually ran.
+    os.environ["E5_MULTI_GPU_MIN_CHUNKS"] = str(multi_gpu_threshold)
+    n_gpu = cuda_device_count()
+    if n_gpu > 1 and multi_gpu_threshold > 0:
+        _log(f"embed: {n_gpu} CUDA devices visible; data-parallel embedding engages "
+             f"at >={multi_gpu_threshold} chunks (else single-device).")
+    else:
+        reason = ("multi-GPU disabled (threshold<=0)" if multi_gpu_threshold <= 0
+                  else f"{n_gpu} CUDA device(s) visible")
+        _log(f"embed: single-device embedding — {reason}.")
 
     _log(f"embed: staged {staged} judgment(s); building the e5 index ...")
 
@@ -765,6 +791,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="cap docs/year (smoke runs)")
     p.add_argument("--embed-limit", type=int, default=1_000_000,
                    help="max judgments to embed (safety cap)")
+    p.add_argument("--multi-gpu-threshold", type=int, default=50_000,
+                   help="min chunk count to shard embedding data-parallel across "
+                        "all CUDA devices (needs >1 GPU); 0 disables multi-GPU")
     p.add_argument("--spot-queries", default=None,
                    help="file of newline-delimited spot-check queries (else built-in)")
     p.add_argument("--allow-agpl", action="store_true",
@@ -811,6 +840,7 @@ def main(argv: list[str] | None = None) -> int:
             processed_dir=processed_dir, embed_dir=embed_dir, out_dir=out_dir,
             llm=args.llm, top_k=args.top_k, limit_per_year=args.limit_per_year,
             embed_limit=args.embed_limit, allow_agpl=args.allow_agpl,
+            multi_gpu_threshold=args.multi_gpu_threshold,
         )
         run_eval(pipeline, out_dir, _load_queries(args.spot_queries), args.top_k)
 

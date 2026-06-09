@@ -10,7 +10,12 @@ from indianlegal_llm.config import Settings
 from indianlegal_llm.ingestion.stub import StubIngestor
 from indianlegal_llm.model.stub import StubLLM
 from indianlegal_llm.pipeline import build_pipeline
-from indianlegal_llm.rag.embedding_retriever import EmbeddingRetriever, MultilingualE5Embedder
+from indianlegal_llm.rag.embedding_retriever import (
+    EmbeddingRetriever,
+    MultilingualE5Embedder,
+    _should_shard,
+    cuda_device_count,
+)
 
 
 def test_embedding_retriever_constructs_without_loading():
@@ -35,3 +40,28 @@ def test_vector_backend_e5_falls_back_to_lexical_when_unavailable(capsys):
     )
     assert type(pipe.answerer.retriever).__name__ == "InMemoryRetriever"
     assert "lexical InMemoryRetriever" in capsys.readouterr().err
+
+
+def test_should_shard_only_with_multi_gpu_and_enough_texts():
+    # Multi-GPU data-parallel embedding engages only with >1 device AND a corpus
+    # at/over the threshold AND a positive threshold.
+    assert _should_shard(60_000, device_count=2, threshold=50_000) is True
+    assert _should_shard(50_000, device_count=4, threshold=50_000) is True  # boundary
+    assert _should_shard(60_000, device_count=1, threshold=50_000) is False  # 1 GPU
+    assert _should_shard(10_000, device_count=2, threshold=50_000) is False  # too few
+    assert _should_shard(60_000, device_count=2, threshold=0) is False       # disabled
+
+
+def test_cuda_device_count_never_raises_and_is_non_negative():
+    # Detection must degrade gracefully (0 with no torch/GPU, never an exception).
+    n = cuda_device_count()
+    assert isinstance(n, int) and n >= 0
+
+
+def test_embedder_reads_multi_gpu_threshold_from_env(monkeypatch):
+    monkeypatch.setenv("E5_MULTI_GPU_MIN_CHUNKS", "12345")
+    assert MultilingualE5Embedder().multi_gpu_min_texts == 12345
+    monkeypatch.setenv("E5_MULTI_GPU_MIN_CHUNKS", "garbage")
+    assert MultilingualE5Embedder().multi_gpu_min_texts == 50_000  # safe default
+    # An explicit constructor arg overrides the env.
+    assert MultilingualE5Embedder(multi_gpu_min_texts=7).multi_gpu_min_texts == 7
