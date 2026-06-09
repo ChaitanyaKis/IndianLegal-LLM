@@ -21,8 +21,13 @@
 #   httpx            # India Code / Indian Kanoon fetching
 #
 # --- Embedding + vector retrieval workstream ---
-#   sentence-transformers
+#   sentence-transformers   # intfloat/multilingual-e5-* (MIT) cross-lingual retrieval
 #   faiss-cpu        # or: chromadb / qdrant-client
+#
+# --- Build-time data prep (data_pipeline/, NOT shipped) -> requirements-dataprep.txt ---
+#   pdfminer.six     # MIT  — primary PDF text extractor
+#   pypdf            # BSD-3 — fallback PDF text extractor
+#   (PyMuPDF is AGPL: isolated, build-only, opt-in; never an inference dep.)
 #
 # --- Model + fine-tuning workstream (base model MUST be Apache-2.0/MIT) ---
 #   transformers

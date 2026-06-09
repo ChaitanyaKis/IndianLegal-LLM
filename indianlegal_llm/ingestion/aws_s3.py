@@ -171,7 +171,15 @@ def _party_title(row: Mapping) -> str:
 
 
 class AWSSupremeCourtIngestor(_S3ParquetIngestor):
-    """Supreme Court of India judgments from AWS Open Data."""
+    """Supreme Court of India judgments from AWS Open Data (parquet metadata).
+
+    NOTE (Hour M-FT1): the parquet ``raw_html`` column is the eCourts page chrome
+    (a language-selector), NOT the judgment body — so this ingestor's ``text`` is
+    low value for retrieval. The REAL judgment text lives in the per-year PDF tars;
+    the default retrieval source is now ``local-sc`` (LocalSCIngestor), which reads
+    the PDF text extracted by ``data_pipeline``. This S3 ingestor remains for
+    metadata/streaming; prefer ``local-sc`` for grounded answers.
+    """
 
     source_name = "aws-sc"
     metadata_root = SC_METADATA_ROOT

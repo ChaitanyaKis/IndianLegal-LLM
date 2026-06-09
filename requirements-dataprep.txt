@@ -1,0 +1,17 @@
+# Build-time DATA-PREP requirements (data_pipeline/) — NOT shipped/inference deps.
+#
+# The inference path (indianlegal_llm) never imports data_pipeline, so none of
+# these enter the shipped dependency tree (the skeleton stays stdlib-only,
+# CLAUDE.md §6). Install only when extracting the corpus / building the dataset:
+#   pip install -r requirements-dataprep.txt
+#
+# --- Permissive PDF text extraction (REQUIRED, license-clean) ---
+pdfminer.six        # MIT — primary extractor
+pypdf               # BSD-3 — fallback extractor
+#
+# --- AGPL build-time fallback (OPTIONAL; do NOT add to the framework deps) ---
+# PyMuPDF is AGPL. It is permitted ONLY as an isolated build-time fallback for the
+# rare scanned PDF, enabled explicitly with `--allow-agpl`. It is never imported by
+# inference/RAG/serving. Prefer quarantining scans, or use Apache-2.0 OCR
+# (pytesseract + Tesseract). Uncomment to opt in:
+# PyMuPDF

@@ -36,6 +36,9 @@ ENV/
 eval_metrics.json
 eval_summary.md
 
+# Build/data-collection logs
+*.log
+
 # Tooling caches
 .pytest_cache/
 .mypy_cache/

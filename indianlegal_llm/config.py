@@ -76,10 +76,12 @@ class Settings:
     top_k:
         Number of chunks to retrieve per query.
     ingestor:
-        Which ingestion source to use. One of "stub", "aws-sc", "aws-hc",
-        "india-code", "indian-kanoon". The real sources need the `ingestion`
-        extra; `build_pipeline()` falls back to "stub" if they are unavailable so
-        the zero-dependency skeleton always runs (CLAUDE.md §6).
+        Which ingestion source to use. One of "local-sc" (default — the real,
+        PDF-extracted SC judgment text produced by data_pipeline), "stub",
+        "aws-sc", "aws-hc", "india-code", "indian-kanoon". `build_pipeline()` falls
+        back to "stub" if the source is unavailable (e.g. the processed corpus has
+        not been built yet), so the zero-dependency skeleton always runs
+        (CLAUDE.md §6).
     ingest_limit:
         Max documents to pull from a real source (the ingestion `--limit`).
     manifest_path:
@@ -104,7 +106,7 @@ class Settings:
     embedding_model: str = "stub-token-overlap"
     vector_backend: str = "memory"
     top_k: int = 3
-    ingestor: str = "aws-sc"
+    ingestor: str = "local-sc"
     ingest_limit: int = 200
     manifest_path: str = "data/source_manifest.jsonl"
     ingestor_strict: bool = False

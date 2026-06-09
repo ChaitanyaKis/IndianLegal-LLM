@@ -11,7 +11,7 @@ from .base import BaseIngestor
 from .stub import StubIngestor
 
 # Canonical source names (aliases accepted by get_ingestor).
-SOURCES = ("stub", "aws-sc", "aws-hc", "india-code", "indian-kanoon")
+SOURCES = ("stub", "local-sc", "aws-sc", "aws-hc", "india-code", "indian-kanoon")
 
 
 def get_ingestor(source: str, limit: int = 200, **kwargs) -> BaseIngestor:
@@ -23,6 +23,10 @@ def get_ingestor(source: str, limit: int = 200, **kwargs) -> BaseIngestor:
     name = (source or "stub").strip().lower()
     if name == "stub":
         return StubIngestor()
+    if name in ("local-sc", "local"):
+        from .local_sc import LocalSCIngestor
+
+        return LocalSCIngestor(limit=limit)
     if name in ("aws-sc", "sc", "supreme-court"):
         from .aws_s3 import AWSSupremeCourtIngestor
 
