@@ -47,6 +47,29 @@ def test_get_llm_resolves_backends_without_loading():
         get_llm("gpt-4o")  # unknown backend
 
 
+def test_quant_4bit_config_has_true_4bit_fields():
+    """The 4-bit knobs must be present + correct so a ~14B model fits a T4 (~9 GB,
+    not ~16+). Asserted offline on the data, without importing transformers/torch."""
+    from indianlegal_llm.model.transformers_llm import QUANT_4BIT
+
+    assert QUANT_4BIT["load_in_4bit"] is True
+    assert QUANT_4BIT["bnb_4bit_quant_type"] == "nf4"
+    assert QUANT_4BIT["bnb_4bit_use_double_quant"] is True
+    # A dtype NAME (resolved to torch.bfloat16 at load), so the field set is
+    # checkable without torch; compute dtype must NOT be a full-precision float32.
+    assert QUANT_4BIT["bnb_4bit_compute_dtype"] == "bfloat16"
+
+
+def test_small_eval_model_is_on_the_license_allowlist():
+    """The default eval model must be license-clean (CLAUDE.md §2) in both the
+    config allowlist and the serving allowlist."""
+    from indianlegal_llm.config import LICENSE_CLEAN_BASE_MODELS
+    from indianlegal_llm.model.transformers_llm import _LICENSE_CLEAN
+
+    assert LICENSE_CLEAN_BASE_MODELS.get("microsoft/Phi-3.5-mini-instruct") == "MIT"
+    assert "microsoft/Phi-3.5-mini-instruct" in _LICENSE_CLEAN
+
+
 def test_transformers_llm_defaults_to_deterministic_generation():
     llm = get_llm("transformers")
     assert llm.temperature == 0.0  # greedy decoding for legal determinism

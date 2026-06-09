@@ -20,6 +20,9 @@ from dataclasses import dataclass
 # card; Gemma 3 and earlier use Google's custom Gemma Terms and do NOT qualify.
 LICENSE_CLEAN_BASE_MODELS = {
     "microsoft/phi-4": "MIT",  # default zero-shot serving base — genuinely MIT
+    # Small (3.8B) instruct model — verified MIT on its current HF card. Fits a T4
+    # in 4-bit with headroom, so it is the default base for the GPU quality eval.
+    "microsoft/Phi-3.5-mini-instruct": "MIT",
     # QLoRA fine-tune target (Apache-2.0, verified on the HF model card). The LoRA
     # adapter we train and ship is MIT; the base is downloaded by the user.
     "Qwen/Qwen3-4B-Instruct-2507": "Apache-2.0",

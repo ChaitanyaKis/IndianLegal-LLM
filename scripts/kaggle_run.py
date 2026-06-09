@@ -76,6 +76,7 @@ from indianlegal_llm._io import enable_utf8_output  # noqa: E402
 from indianlegal_llm.config import Settings  # noqa: E402
 from indianlegal_llm.evaluation import quality  # noqa: E402
 from indianlegal_llm.ingestion.local_sc import LocalSCIngestor  # noqa: E402
+from indianlegal_llm.model.registry import get_llm  # noqa: E402
 from indianlegal_llm.pipeline import build_pipeline  # noqa: E402
 from indianlegal_llm.rag.embedding_retriever import (  # noqa: E402
     EmbeddingRetriever,
@@ -94,6 +95,13 @@ _FULL_SC_RANGE = "1950-2025"
 # Default embed slice: the recent / Bharatiya-Nyaya-Sanhita-relevant era (BNS was
 # enacted 2023, in force 1 Jul 2024). Tunable via --embed-scope.
 _DEFAULT_EMBED_SCOPE = "2023-2025"
+
+# Default LLM for the GPU quality eval: a small (3.8B) MIT instruct model that fits
+# one T4 in 4-bit with headroom (phi-4 at ~14B is overkill for the eval and OOM'd).
+# Verified MIT on its current HF card. Override with --llm-model / env LLM_MODEL
+# (e.g. microsoft/phi-4). Also the model the loader FALLS BACK to if a bigger
+# requested model fails to load — so the eval never silently drops to the stub.
+_DEFAULT_EVAL_LLM_MODEL = "microsoft/Phi-3.5-mini-instruct"
 
 # ~10 holding/issue-style spot-check queries so retrieval relevance is eyeballable.
 # Generic Indian-law questions (not pinned to any one judgment); override with
@@ -468,6 +476,51 @@ def _stage_embed_corpus(
     return staged
 
 
+def _resolve_llm_model(flag: str | None, env_value: str | None) -> str:
+    """Model-id precedence: --llm-model flag > env LLM_MODEL > small eval default."""
+    return (flag or "").strip() or (env_value or "").strip() or _DEFAULT_EVAL_LLM_MODEL
+
+
+def _default_llm_loader(model_id: str, adapter: str):
+    """Construct + eagerly load a real transformers LLM (raises if it can't load)."""
+    llm = get_llm("transformers", base_model=model_id, adapter=adapter)
+    ensure = getattr(llm, "ensure_loaded", None)
+    if ensure is not None:
+        ensure()  # force the weight load now so a failure surfaces here, not later
+    return llm
+
+
+def _load_real_llm(primary: str, fallback: str, *, adapter: str = "", loader=None):
+    """Load a REAL LLM, falling back to a smaller model before ever giving up.
+
+    Tries ``primary``; on any failure logs a prominent FALLING BACK message and
+    tries ``fallback`` (skipped if identical). If both fail it RAISES — it never
+    returns a StubLLM, so the eval can never silently report stub metrics as real.
+    """
+    loader = loader or _default_llm_loader
+    attempts = [primary] + ([fallback] if fallback and fallback != primary else [])
+    last_err = ""
+    for i, model_id in enumerate(attempts):
+        try:
+            llm = loader(model_id, adapter)
+            if i > 0:
+                _log(f"⚠ FELL BACK to '{model_id}' for the eval LLM.")
+            else:
+                _log(f"eval LLM: loaded '{model_id}'.")
+            return llm
+        except Exception as exc:  # noqa: BLE001 - try the fallback, then surface
+            last_err = f"{type(exc).__name__}: {exc}"
+            tag = "primary" if i == 0 else "fallback"
+            _log(f"⚠ eval LLM {tag} '{model_id}' failed to load: {last_err}")
+            if i == 0 and len(attempts) > 1:
+                _log(f"⚠ FALLING BACK to '{fallback}': {last_err}")
+    raise RuntimeError(
+        f"could not load a real eval LLM (tried {attempts}; last error: {last_err}). "
+        "Refusing to fall back to the stub and report its metrics as a real run — "
+        "fix the model/GPU/deps (pip install -e .[model]) or use --llm stub."
+    )
+
+
 def run_embed_index(
     years: list[str],
     *,
@@ -478,6 +531,8 @@ def run_embed_index(
     embed_dir: Path,
     out_dir: Path,
     llm: str,
+    llm_model: str,
+    adapter: str,
     top_k: int,
     limit_per_year: int | None,
     embed_limit: int,
@@ -528,15 +583,28 @@ def run_embed_index(
                   else f"{n_gpu} CUDA device(s) visible")
         _log(f"embed: single-device embedding — {reason}.")
 
+    # Resolve the eval LLM. For a real run we pre-load it here (with a loud
+    # fallback to the small model) and hand the loaded instance to build_pipeline,
+    # so build_pipeline's OWN silent stub fallback never fires — a real run that
+    # can't load any model ERRORS instead of quietly reporting stub metrics. For
+    # --llm stub we leave the (intentional) stub to build_pipeline via settings.
+    real_llm = None
+    if llm == "transformers":
+        real_llm = _load_real_llm(
+            llm_model, _DEFAULT_EVAL_LLM_MODEL, adapter=adapter
+        )
+
     _log(f"embed: staged {staged} judgment(s); building the e5 index ...")
 
     # Reuse the sanctioned wiring point. VECTOR_BACKEND=e5 selects the real
     # EmbeddingRetriever; the ingestor override points it at exactly the embed
-    # years. The eval harness's determinism is irrelevant here (this is the real,
-    # non-blocking quality tier), so we let the configured LLM load.
-    settings = Settings(vector_backend="e5", llm=llm, top_k=top_k)
+    # years. ``llm`` is passed pre-loaded for a real run (else resolved from
+    # settings, i.e. the stub) — build_pipeline stays the single wiring point.
+    settings = Settings(
+        vector_backend="e5", llm=llm, base_model=llm_model, adapter=adapter, top_k=top_k
+    )
     ingestor = LocalSCIngestor(processed_dir=str(embed_dir), limit=embed_limit)
-    pipeline = build_pipeline(settings, ingestor=ingestor)
+    pipeline = build_pipeline(settings, ingestor=ingestor, llm=real_llm)
 
     retriever = pipeline.answerer.retriever
     if not isinstance(retriever, EmbeddingRetriever):
@@ -707,9 +775,19 @@ def run_eval(pipeline, out_dir: Path, queries: list[str], top_k: int) -> dict:
     report = quality.run(pipeline=pipeline)
     print(quality._format(report))
     if not report.get("is_real_run"):
-        _log("note: LLM is the stub (no GPU / use --llm transformers for a full "
-             "model run). proposition_grounding + the spot-checks below are "
-             "computed from the REAL e5 retriever and are valid regardless of LLM.")
+        # Unmissable banner: stub metrics must NEVER read as a real-model run.
+        bar = "=" * 64
+        print(
+            f"\n{bar}\n"
+            "⚠  EVAL DID NOT USE A REAL LLM  (backend = StubLLM)\n"
+            f"{bar}\n"
+            "   citation_accuracy below is the stub's deterministic behavior, NOT a\n"
+            "   real model. Pass --llm transformers on a GPU host for a real run.\n"
+            "   (retrieval_hit_rate/proposition_grounding + the spot-checks ARE real:\n"
+            "    they come from the e5 retriever and are independent of the LLM.)\n"
+            f"{bar}\n",
+            file=sys.stderr,
+        )
 
     # The golden set's expected_doc_ids (e.g. 'puttaswamy-2017') belong to the STUB
     # corpus; the local-sc corpus uses 'sc-<neutral-citation>' ids, so they can
@@ -736,8 +814,12 @@ def run_eval(pipeline, out_dir: Path, queries: list[str], top_k: int) -> dict:
     spot = run_spot_checks(pipeline, queries, top_k)
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    llm = pipeline.answerer.llm
     payload = {
         "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "is_real_run": bool(report.get("is_real_run")),
+        "llm_backend": report.get("backend"),
+        "llm_model": getattr(llm, "model_id", "unknown"),
         "quality_eval": report,
         "metric_notes": notes,
         "spot_checks": spot,
@@ -786,6 +868,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="artifact output dir (default <work-dir>)")
     p.add_argument("--llm", default="stub", choices=["stub", "transformers"],
                    help="LLM for the quality eval; 'stub' keeps it retrieval-focused")
+    p.add_argument("--llm-model", default=None,
+                   help="eval LLM id (else env LLM_MODEL, else a small MIT instruct "
+                        f"model: {_DEFAULT_EVAL_LLM_MODEL}). e.g. microsoft/phi-4")
+    p.add_argument("--adapter", default="",
+                   help="optional LoRA/QLoRA adapter (path or HF id) for the eval LLM")
     p.add_argument("--top-k", type=int, default=5, help="chunks retrieved per query")
     p.add_argument("--limit-per-year", type=int, default=None,
                    help="cap docs/year (smoke runs)")
@@ -834,11 +921,13 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     if not args.skip_embed:
+        llm_model = _resolve_llm_model(args.llm_model, os.getenv("LLM_MODEL"))
         pipeline = run_embed_index(
             _parse_scope(args.embed_scope),
             bucket=args.bucket, region=args.region, sc_root=sc_root,
             processed_dir=processed_dir, embed_dir=embed_dir, out_dir=out_dir,
-            llm=args.llm, top_k=args.top_k, limit_per_year=args.limit_per_year,
+            llm=args.llm, llm_model=llm_model, adapter=args.adapter,
+            top_k=args.top_k, limit_per_year=args.limit_per_year,
             embed_limit=args.embed_limit, allow_agpl=args.allow_agpl,
             multi_gpu_threshold=args.multi_gpu_threshold,
         )

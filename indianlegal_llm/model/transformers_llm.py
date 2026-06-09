@@ -17,8 +17,24 @@ import sys
 
 from .base import BaseLLM
 
-# Models confirmed license-clean for serving (kept in sync with config §2).
-_LICENSE_CLEAN = {"microsoft/phi-4"}
+# Models confirmed license-clean for serving (kept in sync with config.py §2).
+_LICENSE_CLEAN = {
+    "microsoft/phi-4",  # MIT — default zero-shot serving base
+    "microsoft/Phi-3.5-mini-instruct",  # MIT — small (3.8B) default for the GPU eval
+    "Qwen/Qwen3-4B-Instruct-2507",  # Apache-2.0 — fine-tune base
+}
+
+# 4-bit (QLoRA-style nf4) quantization knobs. Kept as plain data so the field set
+# can be asserted offline WITHOUT importing transformers/torch (CLAUDE.md §6).
+# ``bnb_4bit_compute_dtype`` is a torch dtype NAME here; it is resolved to the real
+# ``torch`` dtype at load time. This is the config that makes a ~14B model occupy
+# ~9 GB instead of ~16+ GB (the T4 OOM we are fixing).
+QUANT_4BIT = {
+    "load_in_4bit": True,
+    "bnb_4bit_quant_type": "nf4",
+    "bnb_4bit_use_double_quant": True,
+    "bnb_4bit_compute_dtype": "bfloat16",
+}
 
 
 class TransformersLLM(BaseLLM):
@@ -84,19 +100,45 @@ class TransformersLLM(BaseLLM):
                 "Install the model extra: pip install -e .[model]"
             ) from exc
 
-        quantization = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_compute_dtype=torch.bfloat16,
+        # Build the 4-bit config from the offline-testable QUANT_4BIT data,
+        # resolving the compute-dtype name to a real torch dtype.
+        quant_kwargs = dict(QUANT_4BIT)
+        quant_kwargs["bnb_4bit_compute_dtype"] = getattr(
+            torch, quant_kwargs["bnb_4bit_compute_dtype"]
         )
+        quantization = BitsAndBytesConfig(**quant_kwargs)
+
         self._tokenizer = AutoTokenizer.from_pretrained(self.model_id)
         model = AutoModelForCausalLM.from_pretrained(
             self.model_id,
-            device_map="auto",
+            device_map="auto",  # accelerate places/shards across all visible GPUs
             quantization_config=quantization,
-            torch_dtype=torch.bfloat16,
+            # Do NOT pass torch_dtype/dtype here: with a 4-bit quantization_config the
+            # compute dtype comes from bnb_4bit_compute_dtype above. A top-level dtype
+            # both triggers the "torch_dtype is deprecated" warning AND can load the
+            # weights at full precision, defeating 4-bit (the T4 OOM we are fixing).
         )
+
+        # Confirm 4-bit actually engaged and report the real footprint, so a silent
+        # full-precision load (the bug this fixes) is impossible to miss in the logs.
+        is_4bit = bool(getattr(model, "is_loaded_in_4bit", False))
+        try:
+            footprint_gb = model.get_memory_footprint() / 1e9
+            footprint = f"~{footprint_gb:.1f} GB"
+        except Exception:  # pragma: no cover - footprint is best-effort logging only
+            footprint = "unknown size"
+        print(
+            f"[indianlegal_llm] loaded '{self.model_id}': "
+            f"4-bit={is_4bit} ({footprint})",
+            file=sys.stderr,
+        )
+        if not is_4bit:
+            print(
+                "[indianlegal_llm] WARNING: 4-bit quantization did NOT engage — the "
+                "model is loaded at higher precision and may OOM on a 16 GB GPU. "
+                "Check that bitsandbytes is installed (pip install -e .[model]).",
+                file=sys.stderr,
+            )
 
         # Layer the fine-tuned LoRA/QLoRA adapter on the 4-bit base, if configured.
         # The adapter is small (50-200 MB) and ships MIT (CLAUDE.md §2). Only
