@@ -165,8 +165,16 @@ class TransformersLLM(BaseLLM):
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ]
+        # return_dict=True -> a BatchEncoding {input_ids, attention_mask}, so the
+        # tokens are passed to generate() as KWARGS below (never positionally). A
+        # positional BatchEncoding is treated by recent transformers as the input
+        # tensor and .shape[0] is read on it, which a BatchEncoding lacks (crash).
+        # The attention_mask also silences the "mask not set" warning.
         inputs = self._tokenizer.apply_chat_template(
-            messages, add_generation_prompt=True, return_tensors="pt"
+            messages,
+            add_generation_prompt=True,
+            return_tensors="pt",
+            return_dict=True,
         ).to(self._model.device)
 
         gen_kwargs: dict = {
@@ -180,8 +188,9 @@ class TransformersLLM(BaseLLM):
             gen_kwargs["top_p"] = self.top_p
 
         with torch.no_grad():
-            output = self._model.generate(inputs, **gen_kwargs)
+            output = self._model.generate(**inputs, **gen_kwargs)
 
         # Decode only the newly generated continuation, not the prompt echo.
-        generated = output[0][inputs.shape[-1] :]
+        prompt_len = inputs["input_ids"].shape[-1]
+        generated = output[0][prompt_len:]
         return self._tokenizer.decode(generated, skip_special_tokens=True).strip()

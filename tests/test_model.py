@@ -76,6 +76,70 @@ def test_transformers_llm_defaults_to_deterministic_generation():
     assert llm.max_new_tokens > 0
 
 
+def test_generate_passes_input_ids_as_kwarg_not_positional(monkeypatch):
+    """Regression: model.generate() must receive input_ids as a KWARG, never the
+    tokenizer's BatchEncoding positionally — recent transformers reads .shape[0]
+    on the first positional arg, which a BatchEncoding lacks (KeyError -> crash)."""
+    import sys
+    import types
+
+    # generate() only touches torch via torch.no_grad(); stub it so this test
+    # needs no torch / GPU (the model/quant deps stay in the model extra, §6).
+    fake_torch = types.ModuleType("torch")
+
+    class _NoGrad:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    fake_torch.no_grad = lambda: _NoGrad()
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+
+    captured: dict = {}
+
+    class _StopAfterCapture(Exception):
+        pass
+
+    class _FakeModel:
+        device = "cpu"
+
+        def generate(self, *args, **kwargs):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            raise _StopAfterCapture  # stop before decode; we only assert the call
+
+    class _BatchEncoding(dict):
+        """Mimics the tokenizer's output: a mapping with a .to(device) method."""
+
+        def to(self, device):
+            return self
+
+    class _FakeTokenizer:
+        eos_token_id = 7
+
+        def apply_chat_template(self, messages, **kwargs):
+            # The fix relies on a dict (BatchEncoding), so return_dict must be set.
+            assert kwargs.get("return_dict") is True
+            assert kwargs.get("add_generation_prompt") is True
+            return _BatchEncoding(input_ids="IDS", attention_mask="MASK")
+
+    llm = TransformersLLM(model_id="microsoft/Phi-3.5-mini-instruct")
+    llm._model = _FakeModel()  # set -> ensure_loaded() returns early (no real load)
+    llm._tokenizer = _FakeTokenizer()
+
+    with pytest.raises(_StopAfterCapture):
+        llm.generate("system prompt", "user prompt")
+
+    # The crux: nothing was passed positionally, and input_ids/attention_mask
+    # arrived as keyword arguments.
+    assert captured["args"] == ()
+    assert captured["kwargs"]["input_ids"] == "IDS"
+    assert captured["kwargs"]["attention_mask"] == "MASK"
+    assert captured["kwargs"]["max_new_tokens"] == llm.max_new_tokens
+
+
 # --------------------------------------------------------------------------- #
 # Offline: graceful fallback keeps the skeleton running (CLAUDE.md §6)
 # --------------------------------------------------------------------------- #
