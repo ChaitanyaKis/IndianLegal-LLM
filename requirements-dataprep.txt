@@ -9,6 +9,9 @@
 pdfminer.six        # MIT — primary extractor
 pypdf               # BSD-3 — fallback extractor
 #
+# --- Golden-eval seed queries (scripts/build_golden_candidates.py) ---
+pyyaml              # MIT — reads data/eval/golden_queries.yaml
+#
 # --- AGPL build-time fallback (OPTIONAL; do NOT add to the framework deps) ---
 # PyMuPDF is AGPL. It is permitted ONLY as an isolated build-time fallback for the
 # rare scanned PDF, enabled explicitly with `--allow-agpl`. It is never imported by

@@ -769,47 +769,46 @@ def run_spot_checks(pipeline, queries: list[str], top_k: int) -> list[dict]:
     return results
 
 
-def run_eval(pipeline, out_dir: Path, queries: list[str], top_k: int) -> dict:
-    """Run the repo quality eval against the real index + the spot-checks."""
-    _log("=== QUALITY eval (repo harness, real e5 index) ===")
-    report = quality.run(pipeline=pipeline)
-    print(quality._format(report))
-    if not report.get("is_real_run"):
+def run_eval(
+    pipeline, out_dir: Path, queries: list[str], top_k: int, golden_path: str
+) -> dict:
+    """Score the REAL golden set (human-verified citations) + retrieval spot-checks.
+
+    Headline metrics come ONLY from human_verified+ golden cases; machine_bootstrapped
+    is reported as directional. The stale stub-corpus golden set is no longer used
+    for headline numbers (it targeted the dead stub corpus).
+    """
+    from indianlegal_llm.evaluation.golden import load_golden_cases
+
+    is_real_run = pipeline.llm_backend != "StubLLM"
+    if not is_real_run:
         # Unmissable banner: stub metrics must NEVER read as a real-model run.
         bar = "=" * 64
         print(
             f"\n{bar}\n"
             "⚠  EVAL DID NOT USE A REAL LLM  (backend = StubLLM)\n"
             f"{bar}\n"
-            "   citation_accuracy below is the stub's deterministic behavior, NOT a\n"
-            "   real model. Pass --llm transformers on a GPU host for a real run.\n"
+            "   citation_accuracy/refusal numbers are the stub's deterministic\n"
+            "   behavior, NOT a real model. Pass --llm transformers on a GPU host.\n"
             "   (retrieval_hit_rate/proposition_grounding + the spot-checks ARE real:\n"
             "    they come from the e5 retriever and are independent of the LLM.)\n"
             f"{bar}\n",
             file=sys.stderr,
         )
 
-    # The golden set's expected_doc_ids (e.g. 'puttaswamy-2017') belong to the STUB
-    # corpus; the local-sc corpus uses 'sc-<neutral-citation>' ids, so they can
-    # never match and retrieval_hit_rate is structurally N/A here. Flag it rather
-    # than letting a meaningless 0.0 read as a real quality signal. Real retrieval
-    # quality on this corpus is read from proposition_grounding + the spot-checks.
-    retriever = pipeline.answerer.retriever
-    notes = {
-        "retrieval_hit_rate_valid": pipeline.source != "local-sc",
-        "retrieval_hit_rate_note": (
-            "N/A for the local-sc corpus: golden expected_doc_ids target the stub "
-            "corpus and never match 'sc-<...>' ids. Use proposition_grounding + "
-            "the spot-checks for real-corpus retrieval quality."
-            if pipeline.source == "local-sc" else
-            "expected_doc_ids match this source; the value is meaningful."
-        ),
-        "e5_min_score": float(getattr(retriever, "min_score", 0.0)),
-    }
-    if pipeline.source == "local-sc":
-        _log("note: retrieval_hit_rate is N/A for local-sc (golden expected_doc_ids "
-             "target the stub corpus). Judge retrieval via proposition_grounding + "
-             "the spot-checks' pre-gate cosine scores.")
+    _log(f"=== GOLDEN eval (real citations) vs {golden_path} ===")
+    golden_cases = load_golden_cases(golden_path)
+    golden_report = None
+    if golden_cases:
+        golden_report = quality.score_golden_cases(pipeline, golden_cases, top_k=top_k)
+        print(quality.format_golden_report(golden_report))
+        if not golden_report["headline"]["n_cases"]:
+            _log("note: 0 human-verified golden cases yet — headline metrics are "
+                 "empty by design. Run scripts/build_golden_candidates.py and have a "
+                 "human populate data/eval/golden.jsonl (never author citations).")
+    else:
+        _log(f"no golden cases at {golden_path} — nothing to score. Seed + verify "
+             "data/eval/golden.jsonl first (human step).")
 
     spot = run_spot_checks(pipeline, queries, top_k)
 
@@ -817,11 +816,11 @@ def run_eval(pipeline, out_dir: Path, queries: list[str], top_k: int) -> dict:
     llm = pipeline.answerer.llm
     payload = {
         "generated_utc": datetime.now(timezone.utc).isoformat(),
-        "is_real_run": bool(report.get("is_real_run")),
-        "llm_backend": report.get("backend"),
+        "is_real_run": is_real_run,
+        "llm_backend": pipeline.llm_backend,
         "llm_model": getattr(llm, "model_id", "unknown"),
-        "quality_eval": report,
-        "metric_notes": notes,
+        "source": pipeline.source,
+        "golden_eval": golden_report,
         "spot_checks": spot,
     }
     eval_path = out_dir / "eval_real.json"
@@ -883,6 +882,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
                         "all CUDA devices (needs >1 GPU); 0 disables multi-GPU")
     p.add_argument("--spot-queries", default=None,
                    help="file of newline-delimited spot-check queries (else built-in)")
+    p.add_argument(
+        "--golden",
+        default=str(_REPO_ROOT / "data" / "eval" / "golden.jsonl"),
+        help="golden JSONL of REAL human-verified citations to score against",
+    )
     p.add_argument("--allow-agpl", action="store_true",
                    help="build-only PyMuPDF extraction fallback (off by default)")
     p.add_argument("--skip-coverage", action="store_true",
@@ -931,7 +935,9 @@ def main(argv: list[str] | None = None) -> int:
             embed_limit=args.embed_limit, allow_agpl=args.allow_agpl,
             multi_gpu_threshold=args.multi_gpu_threshold,
         )
-        run_eval(pipeline, out_dir, _load_queries(args.spot_queries), args.top_k)
+        run_eval(
+            pipeline, out_dir, _load_queries(args.spot_queries), args.top_k, args.golden
+        )
 
     _log("done. Small artifacts are in the output dir; no corpus was kept whole.")
     return 0

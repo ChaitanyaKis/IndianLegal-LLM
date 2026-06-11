@@ -1,0 +1,72 @@
+# IndianLegal-LLM — golden eval SEED queries.
+#
+# This file holds QUERIES + case_type ONLY. It contains NO citations and NO
+# holdings, by design: this is a citation-trust product, so expected citations are
+# proposed by the REAL retriever (scripts/build_golden_candidates.py against the
+# live index) and CONFIRMED by a human — never authored from model knowledge
+# (CLAUDE.md §4). The verified answers live in data/eval/golden.jsonl.
+#
+# Workflow:
+#   1. scripts/build_golden_candidates.py reads these queries, retrieves real
+#      top-k hits from the index, and writes data/eval/golden_candidates.jsonl.
+#   2. A human reviews the candidates and writes verified GoldenCases into
+#      data/eval/golden.jsonl (expected_doc_ids = real INSC neutral citations).
+#
+# case_type: holding (a specific ruling) | issue (the legal question framed) |
+#            refusal (must be declined — unsupported / out-of-jurisdiction).
+
+queries:
+  # --- Holding / issue probes (the 10 spot-check queries, verbatim) ----------
+  - id: spot-01-privacy
+    query: "What did the Court hold on the right to privacy as a fundamental right?"
+    case_type: holding
+  - id: spot-02-anticipatory-bail
+    query: "What is the test for granting anticipatory bail?"
+    case_type: issue
+  - id: spot-03-quash-fir
+    query: "When can a High Court quash an FIR under its inherent powers?"
+    case_type: issue
+  - id: spot-04-judicial-review
+    query: "What is the scope of judicial review of administrative action?"
+    case_type: issue
+  - id: spot-05-pmla-bail
+    query: "What are the twin conditions for bail under the PMLA?"
+    case_type: issue
+  - id: spot-06-reservation-promotions
+    query: "What did the Court hold on reservation in promotions for public employment?"
+    case_type: holding
+  - id: spot-07-confession-police
+    query: "When is a confession made to a police officer admissible in evidence?"
+    case_type: issue
+  - id: spot-08-basic-structure
+    query: "What is the doctrine of the basic structure of the Constitution?"
+    case_type: issue
+  - id: spot-09-article-22-arrest
+    query: "What are the rights of an arrested person under Article 22?"
+    case_type: issue
+  - id: spot-10-circumstantial-evidence
+    query: "What is the standard of proof for circumstantial evidence in a criminal trial?"
+    case_type: issue
+
+  # --- REFUSAL probes (DRAFTS — human refinement REQUIRED) -------------------
+  # These should have NO support in a 2023–2025 SC corpus, so the system must
+  # REFUSE rather than fabricate. They are first drafts: a human must confirm the
+  # corpus truly lacks support (use the candidate builder's top_score vs the
+  # refusal threshold) and refine/replace any that accidentally DO hit the index.
+  # Foreign-law and out-of-period questions are intentional (jurisdiction §1 /
+  # out-of-corpus), but VERIFY before promoting any of these out of "unverified".
+  - id: refusal-01-foreign-obergefell
+    query: "What did the United States Supreme Court hold about same-sex marriage in Obergefell v. Hodges?"
+    case_type: refusal
+  - id: refusal-02-out-of-period-kesavananda
+    query: "What did the Supreme Court hold in Kesavananda Bharati v. State of Kerala (1973)?"
+    case_type: refusal
+  - id: refusal-03-out-of-period-ayodhya
+    query: "What was the Supreme Court's reasoning in the 2019 Ayodhya title dispute judgment?"
+    case_type: refusal
+  - id: refusal-04-no-such-law
+    query: "What penalty did the Supreme Court prescribe for unauthorized lunar mining under Indian law?"
+    case_type: refusal
+  - id: refusal-05-foreign-uk-hra
+    query: "How did the UK Supreme Court interpret the Human Rights Act 1998 in 2024?"
+    case_type: refusal

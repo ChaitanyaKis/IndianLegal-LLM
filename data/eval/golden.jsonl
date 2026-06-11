@@ -1,0 +1,31 @@
+# IndianLegal-LLM — CURATED golden eval set (REAL, human-verified citations).
+#
+# This file is intentionally (almost) empty: it must be populated by a HUMAN, never
+# by a model. This is a citation-trust product (CLAUDE.md §4) — every expected
+# citation here must be a REAL Supreme Court judgment present in the live index,
+# proposed by the retriever (scripts/build_golden_candidates.py) and CONFIRMED by a
+# human. Do NOT author expected_doc_ids / expected_holding from model knowledge.
+#
+# Format: one JSON object per line (GoldenCase, see indianlegal_llm/evaluation/golden.py).
+# Lines starting with '#' are comments and are ignored by the loader.
+#
+# Fields:
+#   id                  : stable case id
+#   question            : the user question to ask the pipeline
+#   case_type           : "holding" | "issue" | "refusal"
+#   expected_doc_ids    : list of REAL INSC neutral citations, e.g. ["2024INSC846"]
+#                         (empty for refusal probes; empty until human-verified)
+#   expected_holding    : plain-English holding, written from the CITED source
+#   supporting_chunk_ids: (optional) chunk ids a human confirmed support the holding
+#   verification_status : "unverified" | "machine_bootstrapped" | "human_verified"
+#                         | "lawyer_verified"  (only the last two headline)
+#   source_query        : the seed query this case came from (provenance)
+#   notes               : free-form
+#
+# Promotion path: unverified (seed) -> machine_bootstrapped (retriever-proposed) ->
+# human_verified -> lawyer_verified. Only human_verified+ drive headline metrics.
+#
+# --- TEMPLATE EXAMPLE (verification_status=unverified, NO citations) -----------
+# Replace this with real, retriever-proposed, human-verified cases. As-is it is a
+# seed: it is counted but NEVER scored (no fabricated citation can leak from here).
+{"id": "EXAMPLE-001", "question": "What did the Court hold on the right to privacy as a fundamental right?", "case_type": "holding", "expected_doc_ids": [], "expected_holding": "", "supporting_chunk_ids": [], "verification_status": "unverified", "source_query": "What did the Court hold on the right to privacy as a fundamental right?", "notes": "TEMPLATE ONLY — do not score. A human must replace this with a real case: run scripts/build_golden_candidates.py, pick the correct retrieved judgment, set expected_doc_ids to its INSC neutral citation, write expected_holding from that source, and set verification_status=human_verified."}

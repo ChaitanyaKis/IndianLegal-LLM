@@ -1,7 +1,16 @@
 # --- IndianLegal-LLM ignores ---
 # Corpora and models never live in the repo (CLAUDE.md §5: process in the cloud,
 # only code/configs go up, only a 50-200MB adapter comes down).
-data/
+# data/* (not data/) so git still descends and the golden-eval negations below
+# can take effect (a wholesale `data/` exclusion can't be re-included into).
+data/*
+# ...but DO version-control the small, hand-curated golden EVAL set: the seed
+# queries and the human-verified citations are eval ground truth (config, not a
+# corpus). The generated review artifact (golden_candidates.jsonl) stays ignored.
+!data/eval/
+data/eval/*
+!data/eval/golden_queries.yaml
+!data/eval/golden.jsonl
 models/
 adapters/
 outputs/

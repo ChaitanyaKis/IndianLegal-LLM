@@ -43,10 +43,11 @@ model = ["transformers", "torch", "accelerate", "bitsandbytes", "peft"]
 # QLoRA fine-tuning on a free cloud T4 (Qwen3-4B, Apache-2.0). Run IN THE CLOUD;
 # see notebooks/finetune_qlora.ipynb. Exports only the MIT LoRA adapter.
 finetune = ["unsloth", "trl", "datasets", "transformers", "peft", "bitsandbytes", "accelerate"]
-# Build-time data prep (data_pipeline/): permissive PDF text extraction. NOT a
-# shipped/inference dep (inference never imports data_pipeline). AGPL PyMuPDF is
+# Build-time data prep (data_pipeline/ + scripts/): permissive PDF text extraction
+# (pdfminer.six/pypdf) and the golden-eval seed-query reader (pyyaml). NOT a
+# shipped/inference dep (inference never imports these). AGPL PyMuPDF is
 # intentionally excluded here — see requirements-dataprep.txt for the opt-in.
-dataprep = ["pdfminer.six", "pypdf"]
+dataprep = ["pdfminer.six", "pypdf", "pyyaml"]
 # Dev/CI tooling. The deterministic gate itself needs only the standard library;
 # fastapi + httpx are added so the offline API integration test runs in CI.
 dev = ["pytest", "ruff", "black", "pre-commit", "fastapi", "httpx", "pdfminer.six", "pypdf"]
